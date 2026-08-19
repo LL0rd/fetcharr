@@ -14,6 +14,8 @@ const ALWAYS = [
   '--no-simulate',
   '--progress',
   '--newline',
+  '--extractor-args',
+  'youtube:player_client=web_safari,mweb',
 ]
 
 const DEFAULT_TEMPLATE = '%(uploader)s/%(title)s [%(id)s]'
@@ -145,6 +147,16 @@ describe('buildArgs — global settings and custom args', () => {
     expect(buildArgs(job({ customArgs: '   ' }), { customArgs: '' }, paths)).toEqual(
       buildArgs(job({}), settings, paths),
     )
+  })
+})
+
+describe('buildArgs — youtube player clients', () => {
+  it('pins the player clients for every format', () => {
+    for (const format of ['best', '1080p', '720p', 'audio'] as const) {
+      const args = buildArgs(job({ format }), settings, paths)
+      const index = args.indexOf('--extractor-args')
+      expect(args[index + 1]).toBe('youtube:player_client=web_safari,mweb')
+    }
   })
 })
 

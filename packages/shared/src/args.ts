@@ -37,6 +37,11 @@ const ALWAYS_ARGS = [
   '--no-simulate',
   '--progress',
   '--newline',
+  // YouTubes Default-Clients (tv/android_vr) liefern die hier gewählten https-Formate ohne
+  // PO-Token mit 403 aus; web_safari lädt sauber, mweb ist der Fallback. Wirkt nur auf den
+  // YouTube-Extractor und ist für jede andere Site ein No-op — daher bedingungslos gesetzt.
+  '--extractor-args',
+  'youtube:player_client=web_safari,mweb',
 ]
 
 /** Zerlegt eine Args-Zeile in Tokens; einfache und doppelte Quotes halten Leerzeichen zusammen. */
