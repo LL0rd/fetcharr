@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Fetcharr</Name>
+  <Repository>ghcr.io/ll0rd/fetcharr:latest</Repository>
+  <Registry>https://github.com/LL0rd/fetcharr/pkgs/container/fetcharr</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/LL0rd/fetcharr/issues</Support>
+  <Project>https://github.com/LL0rd/fetcharr</Project>
+  <Overview>
+    Fetcharr is a self-hosted media downloader built on yt-dlp. You paste a URL, Fetcharr queues it and a
+    background worker downloads the video or audio into your library. Subscriptions, scheduling and
+    notifications are built in, and everything is stored in a single SQLite database under /config.
+  </Overview>
+  <Category>Downloaders: MediaApp:Video MediaApp:Music</Category>
+  <WebUI>http://[IP]:[PORT:3000]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/LL0rd/fetcharr/master/unraid/fetcharr.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/LL0rd/fetcharr/master/unraid/icon.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+  <Config Name="WebUI" Target="3000" Default="3000" Mode="tcp" Description="Port of the Fetcharr web interface." Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/fetcharr" Mode="rw" Description="Database, cookies and runtime configuration." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/fetcharr</Config>
+  <Config Name="Downloads" Target="/downloads" Default="/mnt/user/media/fetcharr" Mode="rw" Description="Target directory for finished downloads." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/media/fetcharr</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID that owns the downloaded files." Type="Variable" Display="always" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID that owns the downloaded files." Type="Variable" Display="always" Required="true" Mask="false">100</Config>
+  <Config Name="TZ" Target="TZ" Default="Europe/Berlin" Mode="" Description="Timezone used for schedules and timestamps." Type="Variable" Display="always" Required="true" Mask="false">Europe/Berlin</Config>
+  <Config Name="UMASK" Target="UMASK" Default="022" Mode="" Description="Umask applied to created files and directories." Type="Variable" Display="advanced" Required="false" Mask="false">022</Config>
+</Container>
