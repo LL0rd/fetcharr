@@ -1,4 +1,4 @@
-import type { JobOptions } from './job-options'
+import type { JobOptions } from './job-options.ts'
 
 export interface ArgsJob {
   type: 'video' | 'audio'
