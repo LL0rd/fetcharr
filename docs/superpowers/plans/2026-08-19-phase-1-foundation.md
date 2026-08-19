@@ -189,7 +189,7 @@ it('failJob increments attempts; requeues while attempts < maxAttempts, errored 
 ```ts
 export function claimNextJob(db: Db): Job | null {
   const row = db.$client.prepare(`
-    UPDATE jobs SET status = 'running', started_at = unixepoch()
+    UPDATE jobs SET status = 'running', started_at = unixepoch(), updated_at = unixepoch()
     WHERE uid = (
       SELECT uid FROM jobs WHERE status = 'queued'
       ORDER BY priority ASC, created_at ASC LIMIT 1

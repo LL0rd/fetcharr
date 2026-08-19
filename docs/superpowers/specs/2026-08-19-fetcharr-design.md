@@ -74,7 +74,7 @@ Zwei Prozesse, ein Container. Kommunikation ausschließlich über SQLite:
 - `tasks` — key, schedule-JSON, options-JSON, running/confirming, last_ran, last_confirmed
 - `task_runs` — Historie: task_key, Start/Dauer, Ergebnis-Zusammenfassung, Fehler
 - `notifications` — In-App: Typ, Titel, Body, url, read, Zeitstempel
-- `auth` — Admin-Passwort-Hash (argon2), API-Key, Session-Secrets
+- `auth` — Admin-Passwort-Hash (argon2), API-Key
 
 ## Features
 
