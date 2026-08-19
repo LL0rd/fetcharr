@@ -21,7 +21,7 @@
 ### Task 1: Monorepo-Gerüst
 
 **Files:**
-- Create: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `.gitignore`, `.npmrc`, `vitest.workspace.ts`
+- Create: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `.gitignore`, `.npmrc`, `vitest.config.ts` (Root, mit `test.projects` auf alle Pakete — `vitest.workspace.ts` ist deprecated)
 - Create: `apps/web/package.json` (Platzhalter, Task 11), `apps/worker/package.json`, `packages/db/package.json`, `packages/shared/package.json`
 
 - [ ] **Step 1: Workspace-Dateien anlegen**
@@ -128,6 +128,7 @@ export const jobs = sqliteTable('jobs', {
   maxAttempts: integer('max_attempts').notNull().default(3),
   pid: integer('pid'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(), // JEDE Statusänderung setzt updatedAt — SSE-Cursor hängt daran
   startedAt: integer('started_at', { mode: 'timestamp' }),
   finishedAt: integer('finished_at', { mode: 'timestamp' }),
 })
@@ -161,7 +162,9 @@ export const files = sqliteTable('files', {
 ### Task 3: DB-Package — atomares Job-Claiming
 
 **Files:**
-- Create: `packages/db/src/jobs.ts` (Job-Repository: `createJob`, `claimNextJob`, `updateProgress`, `finishJob`, `failJob`, `requeueRunning`)
+- Create: `packages/db/src/jobs.ts` (Job-Repository: `createJob`, `claimNextJob`, `updateProgress`, `finishJob`, `failJob`, `cancelJob`, `retryJob`, `requeueRunning`, `clearFinished`)
+
+Invariante: JEDE Mutation setzt `updated_at = unixepoch()` — darauf stützt sich der SSE-Cursor (Task 13). `retryJob` setzt `status='queued', attempts=0, stderr=NULL`. `cancelJob` erlaubt nur `queued/running/paused` → `cancelled`.
 - Test: `packages/db/test/jobs.test.ts`
 
 - [ ] **Step 1: Failing Tests**
@@ -231,11 +234,11 @@ export type JobOptions = z.infer<typeof JobOptionsSchema>
 
 ---
 
-### Task 5: Worker — Args-Generator (TDD-Matrix)
+### Task 5: Shared — Args-Generator (TDD-Matrix)
 
 **Files:**
-- Create: `apps/worker/src/args.ts`
-- Test: `apps/worker/test/args.test.ts`
+- Create: `packages/shared/src/args.ts` (direkt in shared — Web braucht ihn in Task 12 für die Args-Preview, kein späterer Umzug)
+- Test: `packages/shared/test/args.test.ts`
 
 - [ ] **Step 1: Failing Tests — die Matrix aus der Spec**
 
@@ -245,13 +248,13 @@ Fälle (jeweils exaktes erwartetes Array prüfen):
 - `format: 'audio'` → `-x --audio-format mp3 --embed-thumbnail --add-metadata`
 - `sponsorblock: 'remove'` → `--sponsorblock-remove default`; `'mark'` → `--sponsorblock-mark default`; `'off'` → nichts
 - Output: `-o <DOWNLOADS_DIR>/<type>/<template>.%(ext)s` mit Default-Template `%(uploader)s/%(title)s [%(id)s]`; `targetFolder`/`outputTemplate` überschreiben
-- immer: `--write-info-json --write-thumbnail --no-clean-info-json -j --no-simulate`
+- immer: `--write-info-json --write-thumbnail --no-clean-info-json -j --no-simulate --progress --newline` (WICHTIG: `-j` impliziert Quiet-Mode — ohne `--progress` gibt yt-dlp keine `[download]`-Zeilen aus und der Progress-Parser aus Task 6 bekommt nichts; `--newline` erzwingt zeilenweise Ausgabe statt CR-Überschreiben)
 - globale Settings: `rateLimit` → `-r <wert>`; globale customArgs werden angehängt; job-customArgs zuletzt (gewinnen)
 - Cookies: wenn `<CONFIG_DIR>/cookies.txt` existiert → `--cookies <pfad>` (im Test per tmp-dir)
 
-- [ ] **Step 2: Rot** — `pnpm --filter @fetcharr/worker test` → FAIL
+- [ ] **Step 2: Rot** — `pnpm --filter @fetcharr/shared test` → FAIL
 - [ ] **Step 3: Implementieren** — reine Funktion `buildArgs(job: Job, settings: GlobalSettings, env: Paths): string[]`. Keine I/O außer dem Cookies-Existenz-Check (als Parameter `cookiesPath: string | null` reinreichen, damit die Funktion pur bleibt).
-- [ ] **Step 4: Grün, Commit** — `feat(worker): yt-dlp args generator`
+- [ ] **Step 4: Grün, Commit** — `feat(shared): yt-dlp args generator`
 
 ---
 
@@ -281,7 +284,7 @@ Fälle (jeweils exaktes erwartetes Array prüfen):
 - vorhandenes Binary → kein Download
 - `getVersion()` ruft `yt-dlp --version` (execa gemockt)
 
-- [ ] **Step 2: Rot → implementieren → Grün.** Download-URL: `https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp` (Linux) — Windows nicht unterstützt (Docker-Zielplattform).
+- [ ] **Step 2: Rot → implementieren → Grün.** Download-URL arch-abhängig: `yt-dlp_linux` (x64) bzw. `yt-dlp_linux_aarch64` (arm64) von `https://github.com/yt-dlp/yt-dlp/releases/latest/download/` — die PyInstaller-Standalone-Binaries. NICHT das Asset `yt-dlp` (Zipimport): das braucht ein System-Python, das im Zielcontainer `node:22-bookworm-slim` nicht existiert.
 - [ ] **Step 3: Commit** — `feat(worker): yt-dlp binary manager`
 
 ---
@@ -295,14 +298,14 @@ Fälle (jeweils exaktes erwartetes Array prüfen):
 - [ ] **Step 1: Stub schreiben** — `fake-ytdlp.sh`: gibt 3 Progress-Zeilen auf stderr, ein Info-JSON auf stdout aus, legt `<out>.mp4` + `<out>.info.json` an, exit 0. Zweiter Modus (`FAKE_FAIL=1`): stderr-Fehler, exit 1.
 
 - [ ] **Step 2: Failing Tests**
-- `runDownload(job, ...)` ruft onProgress mit geparsten Werten auf (gedrosselt max 1×/s — im Test mit fake timers)
+- `runDownload(job, ...)` ruft onProgress mit geparsten Werten auf. Drosselung (max 1×/s) NICHT hier testen: `createThrottle(nowFn)` als pure Funktion in `apps/worker/src/throttle.ts` mit eigenem Unit-Test (injizierte Clock; keine fake timers gegen echte Child-Prozesse — das wird flaky). Der Runner-Test prüft nur, dass onProgress mit korrekten Werten gerufen wird
 - Erfolg: Datei wird aus `.tmp/` ins Ziel verschoben, Rückgabe enthält Pfad + Info-JSON
 - Fehler: stderr wird gesammelt zurückgegeben, `.tmp/` aufgeräumt
 - Cancel: `abort()` killt den Prozess (tree-kill), Status-Callback `cancelled`
 
 - [ ] **Step 3: Rot → implementieren → Grün**
 
-Kernpunkte der Implementierung: execa-spawn des Binaries mit Args aus Task 5 aber `-o` in `<DOWNLOADS_DIR>/.tmp/<uid>/`-Verzeichnis; nach Exit 0 alle erzeugten Dateien (Media, .info.json, Thumbnail) per `fs.rename`/Copy-Fallback ins endgültige Ziel gemäß Template verschieben; Info-JSON von stdout parsen.
+Kernpunkte der Implementierung: sobald das Info-JSON auf stdout eintrifft (kommt früh im Lauf), onInfo-Callback mit {title, uploader} feuern — die Loop (Task 9) schreibt damit `jobs.title/uploader` für die Live-Anzeige zurück; execa-spawn des Binaries mit Args aus Task 5 aber `-o` in `<DOWNLOADS_DIR>/.tmp/<uid>/`-Verzeichnis; nach Exit 0 alle erzeugten Dateien (Media, .info.json, Thumbnail) per `fs.rename`/Copy-Fallback ins endgültige Ziel gemäß Template verschieben; Info-JSON von stdout parsen.
 
 - [ ] **Step 4: Commit** — `feat(worker): download runner with tmp-dir staging and cancellation`
 
@@ -316,7 +319,7 @@ Kernpunkte der Implementierung: execa-spawn des Binaries mit Args aus Task 5 abe
 
 - [ ] **Step 1: Failing Tests** (runner gemockt):
 - Loop pollt alle 500 ms, respektiert `maxConcurrent` aus settings (Default 3)
-- claim → runDownload → bei Erfolg `finishJob` + `files`-Insert (Metadaten aus Info-JSON)
+- claim → runDownload → onInfo aktualisiert `jobs.title/uploader` → bei Erfolg `finishJob` + `files`-Insert (Metadaten aus Info-JSON)
 - bei Fehler `failJob` (Requeue/Backoff-Delay: `min(2^attempts * 30s, 15min)` als `not_before`-Spalte? — NEIN, YAGNI: Requeue mit `attempts`-Zähler reicht in Phase 1; Backoff kommt mit Phase 4)
 - Cancel-Signal: Job-Status in DB `cancelled` (von API gesetzt) → Loop killt laufenden Prozess (prüft laufende Jobs 1×/s gegen DB)
 - SIGTERM: laufende Prozesse killen, deren Jobs → `queued`, Loop-Ende
@@ -367,12 +370,18 @@ Expected: Download läuft durch; bei Abbruch mit Ctrl-C wird der Job wieder `que
 ### Task 12: Web — Jobs-API + Probe
 
 **Files:**
-- Create: `apps/web/server/api/jobs/index.get.ts`, `index.post.ts`, `[uid]/cancel.post.ts`, `[uid]/retry.post.ts`, `[uid]/pause.post.ts`, `[uid]/resume.post.ts`
-- Create: `apps/web/server/api/probe.post.ts` (ruft `yt-dlp -J --flat-playlist <url>` direkt, 20s-Timeout — Probe ist kurzlebig und read-only, darf im Web-Prozess laufen)
-- Create: `apps/web/server/api/args-preview.post.ts` (nutzt `buildArgs` aus dem Worker-Package — dafür `buildArgs` nach `packages/shared/src/args.ts` verschieben, Worker importiert von dort)
+- Create: `apps/web/server/api/jobs/index.get.ts`, `index.post.ts`, `clear-finished.post.ts`, `[uid]/cancel.post.ts`, `[uid]/retry.post.ts`, `[uid]/pause.post.ts`, `[uid]/resume.post.ts`
+- Create: `apps/web/server/api/probe.post.ts` (ruft `yt-dlp -J --flat-playlist <url>` direkt, 20s-Timeout — Probe ist kurzlebig und read-only, darf im Web-Prozess laufen; fehlt `<CONFIG_DIR>/bin/yt-dlp` noch → 503 mit Meldung ‚Worker not ready — yt-dlp binary missing‘, das Binary beschafft allein der Worker)
+- Create: `apps/web/server/api/args-preview.post.ts` (nutzt `buildArgs` aus `@fetcharr/shared`)
 - Test: `apps/web/test/jobs-api.test.ts`
 
-- [ ] **Step 1: Failing Tests** — create validiert via JobOptionsSchema (400 bei Müll); cancel setzt Status `cancelled` nur aus `queued/running/paused`; retry nur aus `errored`; list liefert nach `createdAt desc`.
+- [ ] **Step 1: Failing Tests**
+- create validiert via JobOptionsSchema (400 bei Müll) und übernimmt `title`/`uploader` aus dem mitgesendeten Probe-Ergebnis (Body-Felder), damit die Queue sofort Titel statt URL zeigt
+- cancel: `cancelled` nur aus `queued/running/paused` (setzt `updatedAt` — SSE)
+- retry: nur aus `errored`, setzt `attempts=0` zurück (sonst wäre der nächste Fehler sofort final)
+- **pause/resume gelten in Phase 1 NUR für `queued`-Jobs** (`queued→paused→queued`); ein laufender yt-dlp-Prozess ist nicht sauber pausierbar — 409 bei `running`
+- clear-finished löscht alle Jobs mit Status `finished/errored/cancelled`
+- list liefert nach `createdAt desc`
 - [ ] **Step 2: Rot → implementieren → Grün**
 - [ ] **Step 3: Commit** — `feat(web): jobs api, url probe and args preview`
 
@@ -384,7 +393,7 @@ Expected: Download läuft durch; bei Abbruch mit Ctrl-C wird der Job wieder `que
 - Create: `apps/web/server/api/events.get.ts`
 - Create: `apps/web/app/composables/useJobsStream.ts`
 
-- [ ] **Step 1: Implementieren** — `createEventStream(event)`; serverseitig alle 1 s `jobs` mit `status IN ('queued','running','paused')` + zuletzt geänderte lesen (Vergleich über `max(finishedAt, startedAt, createdAt)`-Cursor) und als `jobs`-Event pushen. Client-Composable hält reaktive Job-Map aktuell, Fallback: Refetch bei `error`.
+- [ ] **Step 1: Implementieren** — `createEventStream(event)`; serverseitig alle 1 s `jobs` mit `updated_at > cursor` lesen (Cursor = höchstes bisher gesehenes `updated_at`) und als `jobs`-Event pushen — deckt alle Übergänge inkl. `cancelled` ab, weil jede Mutation `updated_at` setzt (Invariante aus Task 3). Client-Composable hält reaktive Job-Map aktuell, Fallback: Refetch bei `error`.
 
 - [ ] **Step 2: Manuell verifizieren** — `curl -N localhost:3000/api/events` (mit API-Key) zeigt periodische Events.
 - [ ] **Step 3: Commit** — `feat(web): job event stream via sse`

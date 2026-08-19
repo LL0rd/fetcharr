@@ -156,7 +156,7 @@ Tabelle im UI: Titel, letzter Lauf, letzte Bestätigung, Status/Zeitplan, Aktion
 ### Auth & API
 
 - Erststart: Admin-Passwort setzen (Setup-Screen)
-- Session-Cookie (sealed, nuxt-auth-utils), argon2-Hash
+- Session-Cookie (sealed, h3 `useSession`; Session-Secret wird beim ersten Start generiert und als Datei in `/config` persistiert), argon2-Hash (`@node-rs/argon2`)
 - Ein API-Key (`?apiKey=` oder Header) für Automationen; regenerierbar
 - OpenAPI-Spec aus Zod-Schemas generiert, Swagger-UI unter `/api/docs`
 
