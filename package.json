@@ -1,0 +1,16 @@
+{
+  "name": "fetcharr",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "vitest run",
+    "dev:worker": "pnpm --filter @fetcharr/worker dev",
+    "dev:web": "pnpm --filter @fetcharr/web dev"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}
