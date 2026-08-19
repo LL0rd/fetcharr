@@ -202,6 +202,18 @@ describe('subscriptionsRevision', () => {
     expect(subscriptionsRevision(db)).not.toBe(changed)
   })
 
+  it('erkennt Cron- und Pause-Änderungen innerhalb derselben Sekunde', () => {
+    const sub = create({ cron: '0 * * * *' })
+    const before = subscriptionsRevision(db)
+
+    updateSubscription(db, sub.id, { paused: true })
+    const paused = subscriptionsRevision(db)
+    expect(paused).not.toBe(before)
+
+    updateSubscription(db, sub.id, { cron: '0 3 * * *' })
+    expect(subscriptionsRevision(db)).not.toBe(paused)
+  })
+
   it('bleibt bei einem Check stabil', () => {
     const sub = create()
     const before = subscriptionsRevision(db)

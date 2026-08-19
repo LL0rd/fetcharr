@@ -2,10 +2,13 @@ import { existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 import {
+  addArchiveEntry,
   claimNextJob,
   failJob,
   finishJob,
+  getJobSubId,
   requeueRunning,
+  setFileSubscription,
   setJobMeta,
   updateProgress,
   type Db,
@@ -21,6 +24,7 @@ import {
   type PostProcessResult,
 } from './postprocess.ts'
 import { runDownload, type DownloadHandle, type DownloadResult } from './runner.ts'
+import { extractorFromUrl } from './subscriptions.ts'
 import { getJobStatus, getMaxConcurrent, insertFile, writeHeartbeat } from './store.ts'
 import { createThrottle } from './throttle.ts'
 
@@ -135,7 +139,33 @@ export function startLoop(options: LoopOptions): WorkerLoop {
       info: result.info,
     })
     finishJob(db, job.uid)
+    recordSubscriptionResult(job, info)
     log(`finished ${job.uid} -> ${media.mediaPath}`)
+  }
+
+  /**
+   * Der Archiv-Eintrag entsteht erst hier: Ein abgebrochener oder gescheiterter
+   * Download darf beim nächsten Check nicht als „schon geladen" gelten.
+   */
+  function recordSubscriptionResult(job: Job, info: Record<string, unknown>): void {
+    const subId = getJobSubId(db, job.uid)
+    if (!subId) return
+
+    setFileSubscription(db, job.uid, subId)
+
+    const mediaId = str(info.id)
+    if (!mediaId) {
+      log(`no media id for ${job.uid} — skipping archive entry`)
+      return
+    }
+
+    addArchiveEntry(db, {
+      extractor: str(info.extractor_key) ?? str(info.extractor) ?? extractorFromUrl(job.url),
+      mediaId,
+      type: job.type,
+      subId,
+      title: str(info.title) ?? job.title,
+    })
   }
 
   /** Sidecars und Schnitt dürfen einen fertigen Download nie scheitern lassen. */

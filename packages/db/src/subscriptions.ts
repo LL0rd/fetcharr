@@ -183,13 +183,24 @@ export function takeCheckRequests(db: Db): string[] {
   return rows.map((row) => row.id)
 }
 
-/** Ändert sich, sobald Subscriptions angelegt, geändert oder gelöscht werden. */
+/**
+ * Ändert sich, sobald Subscriptions angelegt, geändert oder gelöscht werden.
+ * `updated_at` allein reicht nicht: es zählt in Sekunden, eine Änderung in
+ * derselben Sekunde bliebe unsichtbar — deshalb steckt der Zeitplan selbst mit
+ * in der Signatur.
+ */
 export function subscriptionsRevision(db: Db): string {
   const row = db.$client
-    .prepare('SELECT COUNT(*) AS n, COALESCE(MAX(updated_at), 0) AS latest FROM subscriptions')
-    .get() as { n: number; latest: number }
+    .prepare(
+      `SELECT COUNT(*) AS n, COALESCE(MAX(updated_at), 0) AS latest,
+              (SELECT COALESCE(group_concat(sig, '|'), '')
+                 FROM (SELECT id || ':' || cron || ':' || paused AS sig
+                         FROM subscriptions ORDER BY id)) AS shape
+         FROM subscriptions`,
+    )
+    .get() as { n: number; latest: number; shape: string }
 
-  return `${row.n}:${row.latest}`
+  return `${row.n}:${row.latest}:${row.shape}`
 }
 
 /**

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { createDb, requeueRunning } from '@fetcharr/db'
 
 import { startLoop } from './loop.ts'
+import { startScheduler } from './scheduler.ts'
 import { ensureYtdlp, getVersion } from './ytdlp.ts'
 
 const configDir = process.env.CONFIG_DIR ?? './data/config'
@@ -29,12 +30,15 @@ async function main(): Promise<void> {
   const loop = startLoop({ db, downloadsDir, configDir, log })
   log(`polling ${downloadsDir}`)
 
+  const scheduler = startScheduler({ db, configDir, log })
+  log(`scheduled ${scheduler.scheduled.length} subscription(s)`)
+
   let shuttingDown = false
   const shutdown = (signal: string) => {
     if (shuttingDown) return
     shuttingDown = true
     log(`${signal} — stopping`)
-    void loop.stop().then(() => {
+    void Promise.all([loop.stop(), scheduler.stop()]).then(() => {
       db.$client.close()
       process.exit(0)
     })

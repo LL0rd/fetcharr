@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createDb, createJob, getJob, type Db } from '@fetcharr/db'
+import {
+  createDb,
+  createJob,
+  createSubscription,
+  createSubscriptionJob,
+  getJob,
+  listArchive,
+  type Db,
+} from '@fetcharr/db'
 import { startLoop, type WorkerLoop } from '../src/loop.ts'
 import type { DownloadHandle, DownloadResult, RunDownloadOptions } from '../src/runner.ts'
 import type { PostProcessInput } from '../src/postprocess.ts'
@@ -373,6 +381,59 @@ describe('startLoop', () => {
 
     expect(runner.runs[0]!.aborted).toBe(true)
     expect(getJob(db, job.uid)?.status).toBe('queued')
+  })
+
+  it('archives a subscription download and links the file to the subscription', async () => {
+    const sub = createSubscription(db, { url: 'https://youtube.com/@c', name: 'Channel' })
+    const job = createSubscriptionJob(db, {
+      url: 'https://youtu.be/abc123',
+      type: 'video',
+      options: { format: 'best', sponsorblock: 'off' },
+      subId: sub.id,
+    })
+    const runner = fakeRunner()
+
+    loop = startLoop({ db, downloadsDir: '/downloads', run: runner.run, ...FAST })
+    await waitFor(() => runner.runs.length === 1)
+
+    runner.runs[0]!.finish({
+      status: 'finished',
+      path: '/downloads/subscriptions/Channel/Test Video [abc123].mp4',
+      thumbnailPath: null,
+      info: { ...INFO, extractor_key: 'Youtube' },
+      sizeBytes: 12345,
+    })
+
+    await waitFor(() => getJob(db, job.uid)?.status === 'finished')
+
+    const { entries } = listArchive(db, { subId: sub.id })
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({ extractor: 'youtube', mediaId: 'abc123', subId: sub.id })
+
+    const file = db.$client.prepare('SELECT sub_id FROM files WHERE uid = ?').get(job.uid) as {
+      sub_id: string
+    }
+    expect(file.sub_id).toBe(sub.id)
+  })
+
+  it('keeps the archive empty when a subscription download fails', async () => {
+    const sub = createSubscription(db, { url: 'https://youtube.com/@c', name: 'Channel' })
+    const job = createSubscriptionJob(db, {
+      url: 'https://youtu.be/abc123',
+      type: 'video',
+      options: { format: 'best', sponsorblock: 'off' },
+      subId: sub.id,
+    })
+    db.$client.prepare('UPDATE jobs SET max_attempts = 1 WHERE uid = ?').run(job.uid)
+    const runner = fakeRunner()
+
+    loop = startLoop({ db, downloadsDir: '/downloads', run: runner.run, ...FAST })
+    await waitFor(() => runner.runs.length === 1)
+
+    runner.runs[0]!.finish({ status: 'failed', stderr: 'ERROR: gone', exitCode: 1 })
+
+    await waitFor(() => getJob(db, job.uid)?.status === 'errored')
+    expect(listArchive(db).total).toBe(0)
   })
 
   it('writes a worker heartbeat into the settings table', async () => {
