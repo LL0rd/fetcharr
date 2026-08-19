@@ -162,11 +162,37 @@ describe('startLoop', () => {
     expect(file).toBeDefined()
     expect(file!.title).toBe('Test Video')
     expect(file!.uploader).toBe('Test Channel')
-    expect(file!.path).toBe('/downloads/video/Test Channel/Test Video [abc123].mp4')
+    expect(file!.path).toBe('video/Test Channel/Test Video [abc123].mp4')
     expect(file!.duration_sec).toBe(42.5)
     expect(file!.upload_date).toBe('20260101')
-    expect(file!.thumbnail_path).toBe('/downloads/video/Test Channel/Test Video [abc123].jpg')
+    expect(file!.thumbnail_path).toBe('video/Test Channel/Test Video [abc123].jpg')
     expect(file!.size_bytes).toBe(12345)
+  })
+
+  it('stores library paths relative to the downloads dir, whatever the mount point is', async () => {
+    const job = queue(db)
+    const runner = fakeRunner()
+    const downloadsDir = '/mnt/host/media/fetcharr'
+
+    loop = startLoop({ db, downloadsDir, run: runner.run, ...FAST })
+    await waitFor(() => runner.runs.length === 1)
+
+    runner.runs[0]!.finish({
+      status: 'finished',
+      path: `${downloadsDir}/video/Test Channel/Test Video [abc123].mp4`,
+      thumbnailPath: `${downloadsDir}/video/Test Channel/Test Video [abc123].jpg`,
+      info: INFO,
+      sizeBytes: 12345,
+    })
+
+    await waitFor(() => getJob(db, job.uid)?.status === 'finished')
+
+    const file = db.$client.prepare('SELECT * FROM files WHERE uid = ?').get(job.uid) as Record<
+      string,
+      unknown
+    >
+    expect(file.path).toBe('video/Test Channel/Test Video [abc123].mp4')
+    expect(file.thumbnail_path).toBe('video/Test Channel/Test Video [abc123].jpg')
   })
 
   it('errors the job and keeps stderr when the last attempt fails', async () => {

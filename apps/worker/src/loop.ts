@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 
 import {
   claimNextJob,
@@ -101,15 +101,23 @@ export function startLoop(options: LoopOptions): WorkerLoop {
       title: str(info.title) ?? job.title ?? job.url,
       uploader: str(info.uploader) ?? job.uploader,
       type: job.type,
-      path: result.path,
+      path: toLibraryPath(result.path),
       sizeBytes: result.sizeBytes,
       durationSec: typeof info.duration === 'number' ? info.duration : null,
-      thumbnailPath: result.thumbnailPath,
+      thumbnailPath: result.thumbnailPath ? toLibraryPath(result.thumbnailPath) : null,
       uploadDate: str(info.upload_date),
       info: result.info,
     })
     finishJob(db, job.uid)
     log(`finished ${job.uid} -> ${result.path}`)
+  }
+
+  /**
+   * `files` hält Pfade relativ zu DOWNLOADS_DIR: der Mount-Punkt unterscheidet sich
+   * zwischen Host und Container, absolute Pfade würden den Umzug nicht überleben.
+   */
+  function toLibraryPath(absolute: string): string {
+    return relative(downloadsDir, absolute)
   }
 
   function tick(): void {
