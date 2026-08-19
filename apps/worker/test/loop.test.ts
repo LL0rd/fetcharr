@@ -349,9 +349,14 @@ describe('startLoop', () => {
 
     runner.runs[0]!.finish({ status: 'failed', stderr: 'ERROR: temporary glitch', exitCode: 1 })
 
+    // Der Backoff hält den Job kurz zurück; der Loop greift ihn erst danach wieder.
+    await waitFor(() => getJob(db, job.uid)?.status === 'queued')
+    expect(getJob(db, job.uid)?.attempts).toBe(1)
+    expect(getJob(db, job.uid)?.notBefore).toBeInstanceOf(Date)
+
+    db.$client.prepare('UPDATE jobs SET not_before = NULL WHERE uid = ?').run(job.uid)
     await waitFor(() => runner.runs.length === 2)
     expect(runner.runs[1]!.options.job.uid).toBe(job.uid)
-    expect(getJob(db, job.uid)?.attempts).toBe(1)
   })
 
   it('kills a running process once its job is cancelled in the database', async () => {

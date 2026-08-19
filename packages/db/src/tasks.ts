@@ -196,6 +196,14 @@ export function endTaskConfirm(db: Db, key: string): void {
     .run(key)
 }
 
+/**
+ * Gibt den Task nach einer gescheiterten Bestätigung wieder frei. Das Ergebnis
+ * bleibt liegen: der zweite Versuch soll denselben Stand bestätigen können.
+ */
+export function cancelTaskConfirm(db: Db, key: string): void {
+  db.$client.prepare('UPDATE tasks SET confirming = 0 WHERE key = ?').run(key)
+}
+
 /** „Reset stuck tasks": nach einem Worker-Absturz stehen Flags ohne Prozess. */
 export function resetStuckTasks(db: Db): number {
   return db.$client

@@ -1,10 +1,11 @@
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { createDb, requeueRunning } from '@fetcharr/db'
+import { createDb, requeueRunning, resetStuckTasks, seedTasks } from '@fetcharr/db'
 
 import { startLoop } from './loop.ts'
 import { startScheduler } from './scheduler.ts'
+import { startTaskEngine } from './tasks/engine.ts'
 import { ensureYtdlp, getVersion } from './ytdlp.ts'
 
 const configDir = process.env.CONFIG_DIR ?? './data/config'
@@ -33,12 +34,20 @@ async function main(): Promise<void> {
   const scheduler = startScheduler({ db, configDir, log })
   log(`scheduled ${scheduler.scheduled.length} subscription(s)`)
 
+  seedTasks(db)
+  // Wie bei den Jobs: Flags aus einem abgestürzten Lauf blockieren sonst dauerhaft.
+  const unstuck = resetStuckTasks(db)
+  if (unstuck > 0) log(`reset ${unstuck} stuck task(s)`)
+
+  const tasks = startTaskEngine({ db, configDir, downloadsDir, log })
+  log(`scheduled ${tasks.scheduled.length} task(s)`)
+
   let shuttingDown = false
   const shutdown = (signal: string) => {
     if (shuttingDown) return
     shuttingDown = true
     log(`${signal} — stopping`)
-    void Promise.all([loop.stop(), scheduler.stop()]).then(() => {
+    void Promise.all([loop.stop(), scheduler.stop(), tasks.stop()]).then(() => {
       db.$client.close()
       process.exit(0)
     })
