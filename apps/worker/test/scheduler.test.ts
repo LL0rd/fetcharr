@@ -104,6 +104,44 @@ describe('startScheduler', () => {
     expect(getSubscription(db, subscription.id)?.checkRequested).toBe(false)
   })
 
+  it('führt einen angeforderten Check auch für pausierte Subscriptions aus', async () => {
+    const subscription = sub({ paused: true })
+    const runs = recorder()
+    scheduler = startScheduler({ db, runCheck: runs.runCheck, pollMs: 5 })
+    expect(scheduler.scheduled).toEqual([])
+
+    requestCheck(db, subscription.id)
+
+    await waitFor(() => runs.checked.length === 1)
+    expect(runs.checked[0]).toBe(subscription.id)
+  })
+
+  it('weist einen angeforderten Check ab, solange ein Check läuft', async () => {
+    const subscription = sub({ cron: '0 0 1 1 *' })
+    const checked: string[] = []
+    let resolveCheck!: () => void
+    const gate = new Promise<void>((resolve) => (resolveCheck = resolve))
+
+    scheduler = startScheduler({
+      db,
+      pollMs: 5,
+      runCheck: (entry) => {
+        checked.push(entry.id)
+        return gate
+      },
+    })
+
+    const first = scheduler.trigger(subscription.id)
+    await waitFor(() => checked.length === 1)
+
+    requestCheck(db, subscription.id)
+    await waitFor(() => getSubscription(db, subscription.id)?.checkRequested === false)
+
+    expect(checked).toHaveLength(1)
+    resolveCheck()
+    await first
+  })
+
   it('setzt das checking-Flag über den Lauf und gibt es danach frei', async () => {
     const subscription = sub({ cron: '0 0 1 1 *' })
     let resolveCheck!: () => void
