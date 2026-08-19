@@ -10,7 +10,11 @@ const navItems = [
   { label: 'Settings', to: '/settings' },
 ]
 
-const appVersion = '0.1.0'
+const { version, updateAvailable, load } = useVersion()
+
+onMounted(load)
+
+const appVersion = computed(() => version.value ?? '0.1.0')
 </script>
 
 <template>
@@ -31,6 +35,7 @@ const appVersion = '0.1.0'
 
     <div class="side-foot">
       <div class="side-version">fetcharr v{{ appVersion }}</div>
+      <span v-if="updateAvailable" class="tag tag-accent side-update">new image available</span>
       <a href="#" class="side-signout">Sign out</a>
     </div>
   </aside>
@@ -90,6 +95,7 @@ const appVersion = '0.1.0'
   font-size: 10px;
   color: var(--color-neutral-600);
 }
+.side-update { align-self: flex-start; font-size: 9.5px; }
 .side-signout {
   font-size: 12px;
   cursor: pointer;
