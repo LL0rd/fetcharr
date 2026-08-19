@@ -1,0 +1,3 @@
+#!/command/with-contenv sh
+umask "${UMASK:-022}"
+exec s6-setuidgid abc node /app/worker/index.mjs

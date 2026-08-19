@@ -1,0 +1,20 @@
+#!/command/with-contenv sh
+set -eu
+
+PUID="${PUID:-1000}"
+PGID="${PGID:-1000}"
+
+groupmod -o -g "$PGID" abc
+usermod -o -u "$PUID" abc
+
+echo "[fetcharr] uid=$(id -u abc) gid=$(id -g abc) umask=${UMASK:-022} tz=${TZ:-UTC}"
+
+mkdir -p /config /downloads
+# /config belongs to us; /downloads is the user's share and may be huge, so only
+# the mount point itself is adjusted — everything below keeps its ownership.
+chown -R abc:abc /config
+chown abc:abc /downloads || echo "[fetcharr] cannot chown /downloads — check the share permissions"
+
+if ! s6-setuidgid abc test -w /downloads; then
+  echo "[fetcharr] WARNING: /downloads is not writable for ${PUID}:${PGID} — downloads will fail"
+fi
