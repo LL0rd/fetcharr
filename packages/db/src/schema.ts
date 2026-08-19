@@ -107,6 +107,8 @@ export const tasks = sqliteTable('tasks', {
   options: text('options', { mode: 'json' }),      // pro Task, inkl. auto_confirm
   running: integer('running', { mode: 'boolean' }).notNull().default(false),
   confirming: integer('confirming', { mode: 'boolean' }).notNull().default(false),
+  runRequested: integer('run_requested', { mode: 'boolean' }).notNull().default(false),
+  confirmRequested: integer('confirm_requested', { mode: 'boolean' }).notNull().default(false),
   confirmPayload: text('confirm_payload', { mode: 'json' }), // Run-Ergebnis, das auf Bestätigung wartet
   lastRanAt: integer('last_ran_at', { mode: 'timestamp' }),
   lastConfirmedAt: integer('last_confirmed_at', { mode: 'timestamp' }),
