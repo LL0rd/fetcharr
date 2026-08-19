@@ -17,7 +17,14 @@ export * from './maintenance.ts'
 export * from './notifications.ts'
 export * from './storage.ts'
 
-const MIGRATIONS_FOLDER = fileURLToPath(new URL('../migrations', import.meta.url))
+/**
+ * Im Container liegen die Migrationen neben den Bundles statt neben dieser
+ * Datei — gebündelter Worker und inlined Nitro-Server lösen `import.meta.url`
+ * auf ihr eigenes Ausgabeverzeichnis auf.
+ */
+function migrationsFolder(): string {
+  return process.env.FETCHARR_MIGRATIONS_DIR ?? fileURLToPath(new URL('../migrations', import.meta.url))
+}
 
 export type Db = ReturnType<typeof createDb>
 
@@ -35,7 +42,7 @@ export function createDb(path: string) {
   }
 
   const db = drizzle(sqlite, { schema })
-  migrate(db, { migrationsFolder: MIGRATIONS_FOLDER })
+  migrate(db, { migrationsFolder: migrationsFolder() })
   return db
 }
 
