@@ -24,7 +24,7 @@
 - Create: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `.gitignore`, `.npmrc`, `vitest.config.ts` (Root, mit `test.projects` auf alle Pakete — `vitest.workspace.ts` ist deprecated)
 - Create: `apps/web/package.json` (Platzhalter, Task 11), `apps/worker/package.json`, `packages/db/package.json`, `packages/shared/package.json`
 
-- [ ] **Step 1: Workspace-Dateien anlegen**
+- [x] **Step 1: Workspace-Dateien anlegen**
 
 `pnpm-workspace.yaml`:
 ```yaml
@@ -57,12 +57,12 @@ Root-`package.json`:
 
 Paket-Namen: `@fetcharr/db`, `@fetcharr/shared`, `@fetcharr/worker`, `@fetcharr/web`. Alle `"type": "module"`.
 
-- [ ] **Step 2: Installieren und verifizieren**
+- [x] **Step 2: Installieren und verifizieren**
 
 Run: `pnpm install && pnpm exec tsc --noEmit -p tsconfig.base.json 2>&1 | head -5`
 Expected: keine Fehler (noch kein Code).
 
-- [ ] **Step 3: Commit** — `chore: scaffold pnpm monorepo`
+- [x] **Step 3: Commit** — `chore: scaffold pnpm monorepo`
 
 ---
 
@@ -72,7 +72,7 @@ Expected: keine Fehler (noch kein Code).
 - Create: `packages/db/src/schema.ts`, `packages/db/src/index.ts`, `packages/db/drizzle.config.ts`
 - Test: `packages/db/test/db.test.ts`
 
-- [ ] **Step 1: Failing Test — DB-Factory öffnet In-Memory-DB mit WAL und migriert**
+- [x] **Step 1: Failing Test — DB-Factory öffnet In-Memory-DB mit WAL und migriert**
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -87,9 +87,9 @@ describe('createDb', () => {
 })
 ```
 
-- [ ] **Step 2: Rot laufen lassen** — `pnpm --filter @fetcharr/db test` → FAIL (createDb fehlt)
+- [x] **Step 2: Rot laufen lassen** — `pnpm --filter @fetcharr/db test` → FAIL (createDb fehlt)
 
-- [ ] **Step 3: Schema implementieren (Phase-1-Umfang)**
+- [x] **Step 3: Schema implementieren (Phase-1-Umfang)**
 
 `schema.ts` — nur die Tabellen, die Phase 1 braucht; weitere Tabellen kommen in ihren Phasen per Migration:
 
@@ -153,9 +153,9 @@ export const files = sqliteTable('files', {
 
 `index.ts`: `createDb(path)` — better-sqlite3 öffnen, bei Datei-DB `PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;`, Drizzle-Instanz mit Schema, Migrationen aus `packages/db/migrations/` via `migrate()` ausführen. Migrations mit `pnpm --filter @fetcharr/db drizzle-kit generate` erzeugen und einchecken.
 
-- [ ] **Step 4: Grün laufen lassen** — `pnpm --filter @fetcharr/db test` → PASS
+- [x] **Step 4: Grün laufen lassen** — `pnpm --filter @fetcharr/db test` → PASS
 
-- [ ] **Step 5: Commit** — `feat(db): schema and db factory with WAL + migrations`
+- [x] **Step 5: Commit** — `feat(db): schema and db factory with WAL + migrations`
 
 ---
 
@@ -167,7 +167,7 @@ export const files = sqliteTable('files', {
 Invariante: JEDE Mutation setzt `updated_at = unixepoch()` — darauf stützt sich der SSE-Cursor (Task 13). `retryJob` setzt `status='queued', attempts=0, stderr=NULL`. `cancelJob` erlaubt nur `queued/running/paused` → `cancelled`.
 - Test: `packages/db/test/jobs.test.ts`
 
-- [ ] **Step 1: Failing Tests**
+- [x] **Step 1: Failing Tests**
 
 Kernfälle:
 ```ts
@@ -180,9 +180,9 @@ it('requeueRunning resets running jobs to queued (crash recovery)', ...)
 it('failJob increments attempts; requeues while attempts < maxAttempts, errored afterwards', ...)
 ```
 
-- [ ] **Step 2: Rot** — `pnpm --filter @fetcharr/db test` → FAIL
+- [x] **Step 2: Rot** — `pnpm --filter @fetcharr/db test` → FAIL
 
-- [ ] **Step 3: Implementieren**
+- [x] **Step 3: Implementieren**
 
 `claimNextJob` MUSS ein einzelnes atomares Statement sein (kein select-then-update):
 
@@ -200,8 +200,8 @@ export function claimNextJob(db: Db): Job | null {
 }
 ```
 
-- [ ] **Step 4: Grün** — PASS
-- [ ] **Step 5: Commit** — `feat(db): job repository with atomic claim and crash recovery`
+- [x] **Step 4: Grün** — PASS
+- [x] **Step 5: Commit** — `feat(db): job repository with atomic claim and crash recovery`
 
 ---
 
@@ -211,9 +211,9 @@ export function claimNextJob(db: Db): Job | null {
 - Create: `packages/shared/src/job-options.ts`, `packages/shared/src/index.ts`
 - Test: `packages/shared/test/job-options.test.ts`
 
-- [ ] **Step 1: Failing Test** — Zod-Schema akzeptiert gültige Optionen, verwirft Unsinn (negativer Crop, unbekanntes Format)
+- [x] **Step 1: Failing Test** — Zod-Schema akzeptiert gültige Optionen, verwirft Unsinn (negativer Crop, unbekanntes Format)
 
-- [ ] **Step 2: Rot, dann implementieren**
+- [x] **Step 2: Rot, dann implementieren**
 
 ```ts
 import { z } from 'zod'
@@ -230,7 +230,7 @@ export const JobOptionsSchema = z.object({
 export type JobOptions = z.infer<typeof JobOptionsSchema>
 ```
 
-- [ ] **Step 3: Grün, Commit** — `feat(shared): job options schema`
+- [x] **Step 3: Grün, Commit** — `feat(shared): job options schema`
 
 ---
 
@@ -240,7 +240,7 @@ export type JobOptions = z.infer<typeof JobOptionsSchema>
 - Create: `packages/shared/src/args.ts` (direkt in shared — Web braucht ihn in Task 12 für die Args-Preview, kein späterer Umzug)
 - Test: `packages/shared/test/args.test.ts`
 
-- [ ] **Step 1: Failing Tests — die Matrix aus der Spec**
+- [x] **Step 1: Failing Tests — die Matrix aus der Spec**
 
 Fälle (jeweils exaktes erwartetes Array prüfen):
 - `format: 'best'` → `-f bv*+ba/b --merge-output-format mp4`
@@ -252,9 +252,9 @@ Fälle (jeweils exaktes erwartetes Array prüfen):
 - globale Settings: `rateLimit` → `-r <wert>`; globale customArgs werden angehängt; job-customArgs zuletzt (gewinnen)
 - Cookies: wenn `<CONFIG_DIR>/cookies.txt` existiert → `--cookies <pfad>` (im Test per tmp-dir)
 
-- [ ] **Step 2: Rot** — `pnpm --filter @fetcharr/shared test` → FAIL
-- [ ] **Step 3: Implementieren** — reine Funktion `buildArgs(job: Job, settings: GlobalSettings, env: Paths): string[]`. Keine I/O außer dem Cookies-Existenz-Check (als Parameter `cookiesPath: string | null` reinreichen, damit die Funktion pur bleibt).
-- [ ] **Step 4: Grün, Commit** — `feat(shared): yt-dlp args generator`
+- [x] **Step 2: Rot** — `pnpm --filter @fetcharr/shared test` → FAIL
+- [x] **Step 3: Implementieren** — reine Funktion `buildArgs(job: Job, settings: GlobalSettings, env: Paths): string[]`. Keine I/O außer dem Cookies-Existenz-Check (als Parameter `cookiesPath: string | null` reinreichen, damit die Funktion pur bleibt).
+- [x] **Step 4: Grün, Commit** — `feat(shared): yt-dlp args generator`
 
 ---
 
@@ -264,12 +264,12 @@ Fälle (jeweils exaktes erwartetes Array prüfen):
 - Create: `apps/worker/src/progress.ts`
 - Test: `apps/worker/test/progress.test.ts`, Fixtures: `apps/worker/test/fixtures/ytdlp-progress.txt`
 
-- [ ] **Step 1: Fixture anlegen** — echte yt-dlp-Zeilen (aus einem lokalen Lauf kopieren), inkl. `[download]  62.4% of  312.00MiB at    8.40MiB/s ETA 00:41` und Fragment-Varianten.
+- [x] **Step 1: Fixture anlegen** — echte yt-dlp-Zeilen (aus einem lokalen Lauf kopieren), inkl. `[download]  62.4% of  312.00MiB at    8.40MiB/s ETA 00:41` und Fragment-Varianten.
 
-- [ ] **Step 2: Failing Tests** — `parseProgressLine(line)` liefert `{pct, speed, eta, sizeBytes} | null`; Fragment-Zeilen und Nicht-Progress-Zeilen → null bzw. korrekt.
+- [x] **Step 2: Failing Tests** — `parseProgressLine(line)` liefert `{pct, speed, eta, sizeBytes} | null`; Fragment-Zeilen und Nicht-Progress-Zeilen → null bzw. korrekt.
 
-- [ ] **Step 3: Rot → implementieren → Grün** (Regex, `MiB/GiB` → Bytes)
-- [ ] **Step 4: Commit** — `feat(worker): yt-dlp progress parser`
+- [x] **Step 3: Rot → implementieren → Grün** (Regex, `MiB/GiB` → Bytes)
+- [x] **Step 4: Commit** — `feat(worker): yt-dlp progress parser`
 
 ---
 
@@ -279,13 +279,13 @@ Fälle (jeweils exaktes erwartetes Array prüfen):
 - Create: `apps/worker/src/ytdlp.ts`
 - Test: `apps/worker/test/ytdlp.test.ts`
 
-- [ ] **Step 1: Failing Tests** (fetch gemockt via `vi.stubGlobal`):
+- [x] **Step 1: Failing Tests** (fetch gemockt via `vi.stubGlobal`):
 - `ensureYtdlp()` lädt Binary nach `<CONFIG_DIR>/bin/yt-dlp` wenn nicht vorhanden, `chmod 755`
 - vorhandenes Binary → kein Download
 - `getVersion()` ruft `yt-dlp --version` (execa gemockt)
 
-- [ ] **Step 2: Rot → implementieren → Grün.** Download-URL arch-abhängig: `yt-dlp_linux` (x64) bzw. `yt-dlp_linux_aarch64` (arm64) von `https://github.com/yt-dlp/yt-dlp/releases/latest/download/` — die PyInstaller-Standalone-Binaries. NICHT das Asset `yt-dlp` (Zipimport): das braucht ein System-Python, das im Zielcontainer `node:22-bookworm-slim` nicht existiert.
-- [ ] **Step 3: Commit** — `feat(worker): yt-dlp binary manager`
+- [x] **Step 2: Rot → implementieren → Grün.** Download-URL arch-abhängig: `yt-dlp_linux` (x64) bzw. `yt-dlp_linux_aarch64` (arm64) von `https://github.com/yt-dlp/yt-dlp/releases/latest/download/` — die PyInstaller-Standalone-Binaries. NICHT das Asset `yt-dlp` (Zipimport): das braucht ein System-Python, das im Zielcontainer `node:22-bookworm-slim` nicht existiert.
+- [x] **Step 3: Commit** — `feat(worker): yt-dlp binary manager`
 
 ---
 
@@ -295,19 +295,19 @@ Fälle (jeweils exaktes erwartetes Array prüfen):
 - Create: `apps/worker/src/runner.ts`
 - Test: `apps/worker/test/runner.test.ts` mit Stub-Skript `apps/worker/test/fixtures/fake-ytdlp.sh`
 
-- [ ] **Step 1: Stub schreiben** — `fake-ytdlp.sh`: gibt 3 Progress-Zeilen auf stderr, ein Info-JSON auf stdout aus, legt `<out>.mp4` + `<out>.info.json` an, exit 0. Zweiter Modus (`FAKE_FAIL=1`): stderr-Fehler, exit 1.
+- [x] **Step 1: Stub schreiben** — `fake-ytdlp.sh`: gibt 3 Progress-Zeilen auf stderr, ein Info-JSON auf stdout aus, legt `<out>.mp4` + `<out>.info.json` an, exit 0. Zweiter Modus (`FAKE_FAIL=1`): stderr-Fehler, exit 1.
 
-- [ ] **Step 2: Failing Tests**
+- [x] **Step 2: Failing Tests**
 - `runDownload(job, ...)` ruft onProgress mit geparsten Werten auf. Drosselung (max 1×/s) NICHT hier testen: `createThrottle(nowFn)` als pure Funktion in `apps/worker/src/throttle.ts` mit eigenem Unit-Test (injizierte Clock; keine fake timers gegen echte Child-Prozesse — das wird flaky). Der Runner-Test prüft nur, dass onProgress mit korrekten Werten gerufen wird
 - Erfolg: Datei wird aus `.tmp/` ins Ziel verschoben, Rückgabe enthält Pfad + Info-JSON
 - Fehler: stderr wird gesammelt zurückgegeben, `.tmp/` aufgeräumt
 - Cancel: `abort()` killt den Prozess (tree-kill), Status-Callback `cancelled`
 
-- [ ] **Step 3: Rot → implementieren → Grün**
+- [x] **Step 3: Rot → implementieren → Grün**
 
 Kernpunkte der Implementierung: sobald das Info-JSON auf stdout eintrifft (kommt früh im Lauf), onInfo-Callback mit {title, uploader} feuern — die Loop (Task 9) schreibt damit `jobs.title/uploader` für die Live-Anzeige zurück; execa-spawn des Binaries mit Args aus Task 5 aber `-o` in `<DOWNLOADS_DIR>/.tmp/<uid>/`-Verzeichnis; nach Exit 0 alle erzeugten Dateien (Media, .info.json, Thumbnail) per `fs.rename`/Copy-Fallback ins endgültige Ziel gemäß Template verschieben; Info-JSON von stdout parsen.
 
-- [ ] **Step 4: Commit** — `feat(worker): download runner with tmp-dir staging and cancellation`
+- [x] **Step 4: Commit** — `feat(worker): download runner with tmp-dir staging and cancellation`
 
 ---
 
@@ -317,21 +317,21 @@ Kernpunkte der Implementierung: sobald das Info-JSON auf stdout eintrifft (kommt
 - Create: `apps/worker/src/index.ts`, `apps/worker/src/loop.ts`
 - Test: `apps/worker/test/loop.test.ts`
 
-- [ ] **Step 1: Failing Tests** (runner gemockt):
+- [x] **Step 1: Failing Tests** (runner gemockt):
 - Loop pollt alle 500 ms, respektiert `maxConcurrent` aus settings (Default 3)
 - claim → runDownload → onInfo aktualisiert `jobs.title/uploader` → bei Erfolg `finishJob` + `files`-Insert (Metadaten aus Info-JSON)
 - bei Fehler `failJob` (Requeue/Backoff-Delay: `min(2^attempts * 30s, 15min)` als `not_before`-Spalte? — NEIN, YAGNI: Requeue mit `attempts`-Zähler reicht in Phase 1; Backoff kommt mit Phase 4)
 - Cancel-Signal: Job-Status in DB `cancelled` (von API gesetzt) → Loop killt laufenden Prozess (prüft laufende Jobs 1×/s gegen DB)
 - SIGTERM: laufende Prozesse killen, deren Jobs → `queued`, Loop-Ende
 
-- [ ] **Step 2: Rot → implementieren → Grün**
+- [x] **Step 2: Rot → implementieren → Grün**
 
 `index.ts`: env lesen, `createDb(<CONFIG_DIR>/fetcharr.db)`, `requeueRunning()`, `ensureYtdlp()`, Loop starten, Signal-Handler.
 
-- [ ] **Step 3: Manuell verifizieren** — `CONFIG_DIR=./data/config DOWNLOADS_DIR=./data/downloads pnpm dev:worker`, per SQL einen Job einfügen (echte YouTube-URL), Log beobachten, Datei erscheint unter `data/downloads/video/<uploader>/…`, `files`-Row existiert.
+- [x] **Step 3: Manuell verifizieren** — `CONFIG_DIR=./data/config DOWNLOADS_DIR=./data/downloads pnpm dev:worker`, per SQL einen Job einfügen (echte YouTube-URL), Log beobachten, Datei erscheint unter `data/downloads/video/<uploader>/…`, `files`-Row existiert.
 Expected: Download läuft durch; bei Abbruch mit Ctrl-C wird der Job wieder `queued`.
 
-- [ ] **Step 4: Commit** — `feat(worker): main loop with concurrency, cancellation and graceful shutdown`
+- [x] **Step 4: Commit** — `feat(worker): main loop with concurrency, cancellation and graceful shutdown`
 
 ---
 
@@ -341,11 +341,11 @@ Expected: Download läuft durch; bei Abbruch mit Ctrl-C wird der Job wieder `que
 - Create: `apps/web/nuxt.config.ts`, `apps/web/app/app.vue`, `apps/web/app/assets/styles.css` (Kopie von `docs/design/styles.css`), `apps/web/app/layouts/default.vue`
 - Create: `apps/web/server/utils/db.ts` (Singleton: `useDb()` → createDb aus env)
 
-- [ ] **Step 1: Nuxt 4 minimal aufsetzen** — kein UI-Framework; `styles.css` global einbinden; Layout = Sidebar + Header nach Mockup (Nav-Einträge Queue/Library/Subscriptions/Tasks/Storage/Settings, nicht implementierte Ziele führen auf Platzhalter-Seite „Phase N"). Archivo via `@fontsource/archivo` (self-hosted, kein Google-CDN — Container läuft offline-fähig).
+- [x] **Step 1: Nuxt 4 minimal aufsetzen** — kein UI-Framework; `styles.css` global einbinden; Layout = Sidebar + Header nach Mockup (Nav-Einträge Queue/Library/Subscriptions/Tasks/Storage/Settings, nicht implementierte Ziele führen auf Platzhalter-Seite „Phase N"). Archivo via `@fontsource/archivo` (self-hosted, kein Google-CDN — Container läuft offline-fähig).
 
-- [ ] **Step 2: Verifizieren** — `pnpm dev:web`, `http://localhost:3000` zeigt Layout im Modernist-Look.
+- [x] **Step 2: Verifizieren** — `pnpm dev:web`, `http://localhost:3000` zeigt Layout im Modernist-Look.
 
-- [ ] **Step 3: Commit** — `feat(web): nuxt scaffold with modernist design tokens and app shell`
+- [x] **Step 3: Commit** — `feat(web): nuxt scaffold with modernist design tokens and app shell`
 
 ---
 
@@ -357,13 +357,13 @@ Expected: Download läuft durch; bei Abbruch mit Ctrl-C wird der Job wieder `que
 - Create: `apps/web/app/pages/login.vue` (Setup/Login-Karte nach Mockup), `apps/web/app/middleware/auth.global.ts`
 - Test: `apps/web/test/auth.test.ts` (nitro-test-utils oder Unit auf Handler-Ebene)
 
-- [ ] **Step 1: Failing Tests**
+- [x] **Step 1: Failing Tests**
 - `setup` nur möglich, wenn noch kein Admin existiert; Passwort < 12 Zeichen → 400
 - `login` mit falschem Passwort → 401; richtig → Session-Cookie (h3 `useSession`, sealed, Secret aus `<CONFIG_DIR>` generiert/persistiert)
 - Guard: `/api/jobs` ohne Session → 401, mit API-Key → 200
 
-- [ ] **Step 2: Rot → implementieren (argon2id) → Grün**
-- [ ] **Step 3: Commit** — `feat(web): single-admin auth with sealed sessions and api key`
+- [x] **Step 2: Rot → implementieren (argon2id) → Grün**
+- [x] **Step 3: Commit** — `feat(web): single-admin auth with sealed sessions and api key`
 
 ---
 
@@ -375,15 +375,15 @@ Expected: Download läuft durch; bei Abbruch mit Ctrl-C wird der Job wieder `que
 - Create: `apps/web/server/api/args-preview.post.ts` (nutzt `buildArgs` aus `@fetcharr/shared`)
 - Test: `apps/web/test/jobs-api.test.ts`
 
-- [ ] **Step 1: Failing Tests**
+- [x] **Step 1: Failing Tests**
 - create validiert via JobOptionsSchema (400 bei Müll) und übernimmt `title`/`uploader` aus dem mitgesendeten Probe-Ergebnis (Body-Felder), damit die Queue sofort Titel statt URL zeigt
 - cancel: `cancelled` nur aus `queued/running/paused` (setzt `updatedAt` — SSE)
 - retry: nur aus `errored`, setzt `attempts=0` zurück (sonst wäre der nächste Fehler sofort final)
 - **pause/resume gelten in Phase 1 NUR für `queued`-Jobs** (`queued→paused→queued`); ein laufender yt-dlp-Prozess ist nicht sauber pausierbar — 409 bei `running`
 - clear-finished löscht alle Jobs mit Status `finished/errored/cancelled`
 - list liefert nach `createdAt desc`
-- [ ] **Step 2: Rot → implementieren → Grün**
-- [ ] **Step 3: Commit** — `feat(web): jobs api, url probe and args preview`
+- [x] **Step 2: Rot → implementieren → Grün**
+- [x] **Step 3: Commit** — `feat(web): jobs api, url probe and args preview`
 
 ---
 
@@ -393,10 +393,10 @@ Expected: Download läuft durch; bei Abbruch mit Ctrl-C wird der Job wieder `que
 - Create: `apps/web/server/api/events.get.ts`
 - Create: `apps/web/app/composables/useJobsStream.ts`
 
-- [ ] **Step 1: Implementieren** — `createEventStream(event)`; serverseitig alle 1 s `jobs` mit `updated_at > cursor` lesen (Cursor = höchstes bisher gesehenes `updated_at`) und als `jobs`-Event pushen — deckt alle Übergänge inkl. `cancelled` ab, weil jede Mutation `updated_at` setzt (Invariante aus Task 3). Client-Composable hält reaktive Job-Map aktuell, Fallback: Refetch bei `error`.
+- [x] **Step 1: Implementieren** — `createEventStream(event)`; serverseitig alle 1 s `jobs` mit `updated_at > cursor` lesen (Cursor = höchstes bisher gesehenes `updated_at`) und als `jobs`-Event pushen — deckt alle Übergänge inkl. `cancelled` ab, weil jede Mutation `updated_at` setzt (Invariante aus Task 3). Client-Composable hält reaktive Job-Map aktuell, Fallback: Refetch bei `error`.
 
-- [ ] **Step 2: Manuell verifizieren** — `curl -N localhost:3000/api/events` (mit API-Key) zeigt periodische Events.
-- [ ] **Step 3: Commit** — `feat(web): job event stream via sse`
+- [x] **Step 2: Manuell verifizieren** — `curl -N localhost:3000/api/events` (mit API-Key) zeigt periodische Events.
+- [x] **Step 3: Commit** — `feat(web): job event stream via sse`
 
 ---
 
@@ -409,10 +409,10 @@ Expected: Download läuft durch; bei Abbruch mit Ctrl-C wird der Job wieder `que
 
 Markup/Styling 1:1 am Mockup ausrichten (`docs/design/Fetcharr.dc.html` ist die Referenz — Klassen und Inline-Styles daraus übernehmen, in Komponenten-CSS überführen).
 
-- [ ] **Step 1: Bauen, dann manuell verifizieren (kein Component-Test in Phase 1):**
+- [x] **Step 1: Bauen, dann manuell verifizieren (kein Component-Test in Phase 1):**
 Ablauf: Login → URL einfügen → Fetch → Dialog zeigt Titel/Kanal/Dauer → Format wählen → Add to queue → Zeile erscheint, Fortschritt läuft live, fertiger Job wird „finished".
-- [ ] **Step 2: Fehlerfall verifizieren** — ungültige URL → Job wird `errored`, stderr in expandierter Zeile sichtbar, Retry-Button requeued.
-- [ ] **Step 3: Commit** — `feat(web): queue page and add-download dialog`
+- [x] **Step 2: Fehlerfall verifizieren** — ungültige URL → Job wird `errored`, stderr in expandierter Zeile sichtbar, Retry-Button requeued.
+- [x] **Step 3: Commit** — `feat(web): queue page and add-download dialog`
 
 ---
 
@@ -422,9 +422,9 @@ Ablauf: Login → URL einfügen → Fetch → Dialog zeigt Titel/Kanal/Dauer →
 - Create: `apps/web/server/api/health.get.ts` (ohne Auth: `{status:'ok', db:true, worker:<heartbeat < 5s>}` — Worker schreibt 1×/2s `unixepoch()` in `settings.worker_heartbeat`)
 - Create: `README.md` (Kurz: was ist Fetcharr, dev-Setup, env-Variablen)
 
-- [ ] **Step 1: Heartbeat im Worker-Loop ergänzen (Test in loop.test.ts erweitern)**
-- [ ] **Step 2: Voller Durchlauf** — `pnpm test` (alle Pakete) → PASS; beide dev-Prozesse starten, E2E-Ablauf aus Task 14 mit echter YouTube-URL einmal komplett.
-- [ ] **Step 3: Commit** — `feat: health endpoint with worker heartbeat; project readme`
+- [x] **Step 1: Heartbeat im Worker-Loop ergänzen (Test in loop.test.ts erweitern)**
+- [x] **Step 2: Voller Durchlauf** — `pnpm test` (alle Pakete) → PASS; beide dev-Prozesse starten, E2E-Ablauf aus Task 14 mit echter YouTube-URL einmal komplett.
+- [x] **Step 3: Commit** — `feat: health endpoint with worker heartbeat; project readme`
 
 ---
 
