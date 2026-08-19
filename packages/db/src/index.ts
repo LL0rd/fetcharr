@@ -15,6 +15,7 @@ export * from './archive.ts'
 export * from './tasks.ts'
 export * from './maintenance.ts'
 export * from './notifications.ts'
+export * from './storage.ts'
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL('../migrations', import.meta.url))
 
