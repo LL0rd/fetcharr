@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import NotificationBell from '~/components/notifications/NotificationBell.vue'
 
-const emit = defineEmits<{ fetch: [url: string] }>()
+const emit = defineEmits<{ fetch: [url: string]; bulk: [] }>()
 
 const url = ref('')
 
@@ -23,6 +23,9 @@ function submit(): void {
         @keydown.enter="submit"
       >
       <button class="btn btn-primary" type="button" @click="submit">Fetch</button>
+      <button class="btn btn-secondary bulk-btn" type="button" @click="emit('bulk')">
+        Bulk import
+      </button>
     </div>
 
     <div class="header-actions">
@@ -47,6 +50,7 @@ function submit(): void {
 
 .url-bar { display: flex; flex: 1; max-width: 680px; }
 .url-input { flex: 1; font-family: ui-monospace, monospace; font-size: 13px; }
+.bulk-btn { flex: none; white-space: nowrap; }
 
 .header-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .docs-link { font-size: 12px; color: var(--color-neutral-700); text-decoration: none; }

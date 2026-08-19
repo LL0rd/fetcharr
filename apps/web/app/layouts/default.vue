@@ -2,6 +2,7 @@
 // Das URL-Feld sitzt im Header, der Dialog gehört über die ganze App — deshalb
 // hält das Layout die URL, mit der geprobt wird.
 const probeUrl = ref('')
+const bulkOpen = ref(false)
 
 // Ein frisch eingereihter Job soll sofort sichtbar sein, auch wenn der
 // Ereignis-Stream erst eine Runde später nachzieht.
@@ -21,7 +22,7 @@ async function onAdded(): Promise<void> {
   <div class="shell">
     <AppSidebar />
     <div class="shell-main">
-      <AppHeader @fetch="openDialog" />
+      <AppHeader @fetch="openDialog" @bulk="bulkOpen = true" />
       <main class="shell-content">
         <slot />
       </main>
@@ -34,6 +35,8 @@ async function onAdded(): Promise<void> {
       @close="probeUrl = ''"
       @added="onAdded"
     />
+
+    <BulkImportDialog v-if="bulkOpen" @close="bulkOpen = false" @added="queueReload += 1" />
   </div>
 </template>
 
