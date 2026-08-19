@@ -37,6 +37,12 @@ function backdate(uid: string, secondsAgo: number): void {
     .run(secondsAgo, secondsAgo, uid)
 }
 
+/** Wartezeit bis zum nächsten Versuch, gerundet auf ganze Sekunden. */
+function delaySeconds(job: { notBefore: Date | null }): number | null {
+  if (!job.notBefore) return null
+  return Math.round((job.notBefore.getTime() - Date.now()) / 1000)
+}
+
 describe('createJob', () => {
   it('creates a queued job with a generated uid and timestamps', () => {
     const job = newJob()
@@ -133,6 +139,48 @@ describe('failJob', () => {
     expect(second.finishedAt).toBeInstanceOf(Date)
 
     expect(claimNextJob(db)).toBeNull()
+  })
+
+  it('delays the retry exponentially and caps the wait at 15 minutes', () => {
+    const job = newJob({ maxAttempts: 10 })
+
+    const first = failJob(db, job.uid, 'boom')!
+    expect(delaySeconds(first)).toBe(60)
+
+    const second = failJob(db, job.uid, 'boom')!
+    expect(delaySeconds(second)).toBe(120)
+
+    failJob(db, job.uid, 'boom')
+    failJob(db, job.uid, 'boom')
+    const fifth = failJob(db, job.uid, 'boom')!
+    expect(delaySeconds(fifth)).toBe(900)
+  })
+
+  it('clears not_before once the job errored for good', () => {
+    const job = newJob({ maxAttempts: 1 })
+    expect(failJob(db, job.uid, 'boom')!.notBefore).toBeNull()
+  })
+})
+
+describe('claimNextJob mit Backoff', () => {
+  it('überspringt Jobs, deren Wartezeit noch läuft', () => {
+    const job = newJob()
+    failJob(db, job.uid, 'boom')
+
+    expect(getJob(db, job.uid)?.status).toBe('queued')
+    expect(claimNextJob(db)).toBeNull()
+
+    db.$client.prepare('UPDATE jobs SET not_before = unixepoch() - 1 WHERE uid = ?').run(job.uid)
+    expect(claimNextJob(db)?.uid).toBe(job.uid)
+  })
+
+  it('bevorzugt einen sofort lauffähigen Job vor einem wartenden', () => {
+    const delayed = newJob({ url: 'https://example.com/delayed' })
+    backdate(delayed.uid, 600)
+    failJob(db, delayed.uid, 'boom')
+    const fresh = newJob({ url: 'https://example.com/fresh' })
+
+    expect(claimNextJob(db)?.uid).toBe(fresh.uid)
   })
 })
 

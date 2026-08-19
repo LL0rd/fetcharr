@@ -59,8 +59,9 @@ export function claimNextJob(db: Db): Job | null {
     .prepare(
       `UPDATE jobs SET status = 'running', started_at = unixepoch(), updated_at = unixepoch()
        WHERE uid = (
-         SELECT uid FROM jobs WHERE status = 'queued'
-         ORDER BY priority ASC, created_at ASC LIMIT 1
+         SELECT uid FROM jobs
+          WHERE status = 'queued' AND (not_before IS NULL OR not_before <= unixepoch())
+          ORDER BY priority ASC, created_at ASC LIMIT 1
        )
        RETURNING *`,
     )
@@ -128,7 +129,11 @@ export function finishJob(db: Db, uid: string): Job | null {
 
 /**
  * Zählt den Versuch hoch: solange Versuche übrig sind zurück in die Queue,
- * danach endgültig `errored`.
+ * danach endgültig `errored`. Der Requeue trägt eine Sperrzeit ein
+ * (30 s · 2^Versuch, gedeckelt bei 15 Minuten) — `claimNextJob` respektiert sie,
+ * damit ein dauerhaft kaputter Job die Queue nicht in Sekundentakt beschäftigt.
+ * Der Shift statt `power()`: SQLite kennt Potenzen nicht überall, und die
+ * Deckelung des Exponenten hält ihn im Integer-Bereich.
  */
 export function failJob(db: Db, uid: string, stderr: string | null): Job | null {
   const row = db.$client
@@ -137,6 +142,8 @@ export function failJob(db: Db, uid: string, stderr: string | null): Job | null 
          attempts = attempts + 1,
          stderr = ?,
          pid = NULL,
+         not_before = CASE WHEN attempts + 1 >= max_attempts THEN NULL
+                           ELSE unixepoch() + MIN(30 << MIN(attempts + 1, 10), 900) END,
          status = CASE WHEN attempts + 1 >= max_attempts THEN 'errored' ELSE 'queued' END,
          started_at = CASE WHEN attempts + 1 >= max_attempts THEN started_at ELSE NULL END,
          finished_at = CASE WHEN attempts + 1 >= max_attempts THEN unixepoch() ELSE NULL END,
@@ -167,7 +174,7 @@ export function retryJob(db: Db, uid: string): Job | null {
   const row = db.$client
     .prepare(
       `UPDATE jobs SET
-         status = 'queued', attempts = 0, stderr = NULL, pid = NULL,
+         status = 'queued', attempts = 0, stderr = NULL, pid = NULL, not_before = NULL,
          progress_pct = 0, progress_speed = NULL, progress_eta = NULL,
          started_at = NULL, finished_at = NULL, updated_at = unixepoch()
        WHERE uid = ? AND status = 'errored'
@@ -207,7 +214,7 @@ export function requeueRunning(db: Db): number {
   const result = db.$client
     .prepare(
       `UPDATE jobs SET
-         status = 'queued', pid = NULL, started_at = NULL,
+         status = 'queued', pid = NULL, started_at = NULL, not_before = NULL,
          progress_pct = 0, progress_speed = NULL, progress_eta = NULL,
          updated_at = unixepoch()
        WHERE status = 'running'`,
@@ -257,6 +264,8 @@ function mapJobRow(row: Row | undefined): Job | null {
     stderr: (row.stderr as string | null) ?? null,
     attempts: row.attempts as number,
     maxAttempts: row.max_attempts as number,
+    subId: (row.sub_id as string | null) ?? null,
+    notBefore: toDate(row.not_before),
     pid: (row.pid as number | null) ?? null,
     createdAt: toDate(row.created_at)!,
     updatedAt: toDate(row.updated_at)!,
