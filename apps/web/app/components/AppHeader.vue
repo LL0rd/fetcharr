@@ -1,7 +1,15 @@
 <script setup lang="ts">
-// The URL field and the bell are inert until the probe and notification
-// features land; they exist here so the shell matches the mockup.
+const emit = defineEmits<{ fetch: [url: string] }>()
+
+// Die Glocke ist noch stumm — Notifications kommen in einer späteren Phase.
 const url = ref('')
+
+function submit(): void {
+  const value = url.value.trim()
+  if (!value) return
+  emit('fetch', value)
+  url.value = ''
+}
 </script>
 
 <template>
@@ -11,8 +19,9 @@ const url = ref('')
         v-model="url"
         class="input url-input"
         placeholder="Paste any URL — video, playlist, channel — and hit Enter"
+        @keydown.enter="submit"
       >
-      <button class="btn btn-primary" type="button" disabled>Fetch</button>
+      <button class="btn btn-primary" type="button" @click="submit">Fetch</button>
     </div>
 
     <div class="header-actions">
