@@ -3,6 +3,7 @@ const navItems = [
   { label: 'Queue', to: '/' },
   { label: 'Library', to: '/library' },
   { label: 'Subscriptions', to: '/subscriptions' },
+  { label: 'Archive', to: '/archive' },
   { label: 'Tasks', to: '/tasks' },
   { label: 'Storage', to: '/storage' },
   { label: 'Settings', to: '/settings' },
