@@ -130,12 +130,12 @@ export function startLoop(options: LoopOptions): WorkerLoop {
     }
   }
 
+  // Kein unref: diese Intervalle sind es, die den Worker-Prozess am Leben halten.
   const timers = [
     setInterval(tick, pollMs),
     setInterval(checkCancelled, cancelCheckMs),
     setInterval(() => writeHeartbeat(db), heartbeatMs),
   ]
-  for (const timer of timers) timer.unref?.()
 
   writeHeartbeat(db)
   tick()
