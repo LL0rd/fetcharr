@@ -1,5 +1,7 @@
 # Modernist design system (Kurzreferenz)
 
+**Mockup lokal ansehen:** `python3 -m http.server` in diesem Ordner, dann `http://localhost:8000/Fetcharr.dc.html` (braucht Internet — `support.js` lädt React/Babel von unpkg). Interaktiv: alle Screens über die Sidebar, Add-Download-Dialog über den Fetch-Button.
+
 Quelle: Claude-Design-Projekt `c6d71759-a5f7-4d5e-b69e-96a742bb69a0`, DS `modernist-039253e9`.
 
 Flat, architektonisch, komplett in Archivo: Rot auf Weiß, sichtbares Raster, **0px Corner-Radius**, starke 2px-Linien. Nichts schwebt, nichts ist dekoriert — Ausrichtung und Divider organisieren alles; Labels sitzen flush left (auch in Buttons), Fotos in Schwarz-Weiß (.grayscale).
