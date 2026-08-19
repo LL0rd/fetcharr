@@ -18,6 +18,9 @@ export interface ProbeResult {
   thumbnail: string | null
   isPlaylist: boolean
   entryCount: number | null
+  /** yt-dlp: 'is_live' | 'was_live' | 'post_live' | 'not_live' — null wenn unbekannt. */
+  liveStatus: string | null
+  isLive: boolean
 }
 
 export default defineEventHandler(async (event) => {
@@ -71,8 +74,12 @@ export function ytdlpPath(): string {
 export function toProbeResult(url: string, info: Record<string, any>): ProbeResult {
   const entries = Array.isArray(info.entries) ? info.entries : null
   const isPlaylist = info._type === 'playlist' || entries !== null
+  const liveStatus = str(info.live_status)
 
   return {
+    // `is_live` fehlt manchen Extractoren; dann entscheidet live_status.
+    liveStatus,
+    isLive: info.is_live === true || liveStatus === 'is_live',
     url,
     id: str(info.id),
     title: str(info.title),

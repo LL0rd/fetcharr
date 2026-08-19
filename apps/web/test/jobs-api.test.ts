@@ -279,6 +279,8 @@ describe('POST /api/probe', () => {
       thumbnail: 'https://img/abc.jpg',
       isPlaylist: false,
       entryCount: null,
+      liveStatus: null,
+      isLive: false,
     })
   })
 

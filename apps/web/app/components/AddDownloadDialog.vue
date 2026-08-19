@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { emptyDraft, toJobOptions } from './add-download-options'
+import { emptyDraft, toJobOptions, withLiveFromStart } from './add-download-options'
 
 interface ProbeResult {
   url: string
@@ -10,6 +10,8 @@ interface ProbeResult {
   thumbnail: string | null
   isPlaylist: boolean
   entryCount: number | null
+  liveStatus: string | null
+  isLive: boolean
 }
 
 const props = defineProps<{ url: string }>()
@@ -22,6 +24,14 @@ const probing = ref(true)
 const submitting = ref(false)
 const submitError = ref('')
 const argsPreview = ref('')
+const recordFromStart = ref(false)
+
+const isLive = computed(() => probe.value?.isLive === true)
+
+/** Was der Job wirklich bekommt — inklusive `--live-from-start`, wenn gewählt. */
+const jobOptions = computed(() =>
+  withLiveFromStart(toJobOptions(draft.value), isLive.value && recordFromStart.value),
+)
 
 const kind = computed(() => {
   if (probing.value) return 'checking url'
@@ -69,7 +79,7 @@ function statusMessageOf(error: unknown): string {
 let previewTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(
-  draft,
+  [draft, recordFromStart],
   () => {
     if (previewTimer) clearTimeout(previewTimer)
     previewTimer = setTimeout(loadPreview, 200)
@@ -85,7 +95,7 @@ async function loadPreview(): Promise<void> {
   try {
     const preview = await $fetch<{ command: string }>('/api/args-preview', {
       method: 'POST',
-      body: { url: props.url, options: toJobOptions(draft.value) },
+      body: { url: props.url, options: jobOptions.value },
     })
     argsPreview.value = preview.command
   }
@@ -102,7 +112,7 @@ async function addToQueue(): Promise<void> {
       method: 'POST',
       body: {
         url: props.url,
-        options: toJobOptions(draft.value),
+        options: jobOptions.value,
         title: probe.value?.title ?? undefined,
         uploader: probe.value?.uploader ?? undefined,
       },
@@ -125,6 +135,7 @@ async function addToQueue(): Promise<void> {
       <div class="add-head">
         <span class="dialog-title add-title">Add download</span>
         <span class="tag tag-accent add-kind">{{ kind }}</span>
+        <span v-if="isLive" class="tag add-live">LIVE</span>
       </div>
 
       <div class="add-meta">
@@ -145,6 +156,14 @@ async function addToQueue(): Promise<void> {
         <label>Format</label>
         <SegmentedControl v-model="draft.format" :options="['best', '1080p', '720p', 'audio']" />
       </div>
+
+      <label v-if="isLive" class="add-live-option">
+        <input v-model="recordFromStart" type="checkbox">
+        <span>
+          Record from start
+          <em>Captures the stream from its beginning instead of from now.</em>
+        </span>
+      </label>
 
       <AddDownloadAdvanced v-model="draft" />
 
@@ -203,6 +222,19 @@ async function addToQueue(): Promise<void> {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.add-live {
+  font-size: 10px;
+  color: var(--color-bg);
+  background: var(--color-accent);
+}
+.add-live-option { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; }
+.add-live-option em {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--color-neutral-700);
 }
 
 .add-error {

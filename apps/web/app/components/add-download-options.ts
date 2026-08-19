@@ -41,3 +41,20 @@ export function toJobOptions(draft: DraftOptions): JobOptions {
 
   return options as unknown as JobOptions
 }
+
+const LIVE_FROM_START = '--live-from-start'
+
+/**
+ * Hängt `--live-from-start` an die customArgs, damit ein laufender Stream von
+ * Anfang an statt ab dem Einreihen aufgezeichnet wird. Doppelt anhängen würde
+ * yt-dlp zwar überstehen, macht die Args-Vorschau aber unlesbar.
+ */
+export function withLiveFromStart(options: JobOptions, recordFromStart: boolean): JobOptions {
+  if (!recordFromStart) return options
+
+  const current = ((options as { customArgs?: string }).customArgs ?? '').trim()
+  if (current.split(/\s+/).includes(LIVE_FROM_START)) return options
+
+  const customArgs = current ? `${current} ${LIVE_FROM_START}` : LIVE_FROM_START
+  return { ...options, customArgs } as JobOptions
+}
