@@ -1,0 +1,19 @@
+[youtube] Extracting URL: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+[youtube] dQw4w9WgXcQ: Downloading webpage
+[info] dQw4w9WgXcQ: Downloading 1 format(s): 137+251
+[download] Destination: /data/downloads/.tmp/Ab12Cd34/Rick Astley - Never Gonna Give You Up [dQw4w9WgXcQ].f137.mp4
+[download]   0.0% of  312.00MiB at  Unknown B/s ETA Unknown
+[download]   0.4% of  312.00MiB at    1.21MiB/s ETA 04:16
+[download]  12.8% of  312.00MiB at    4.02MiB/s ETA 01:07
+[download]  62.4% of  312.00MiB at    8.40MiB/s ETA 00:41
+[download]  99.9% of  312.00MiB at    9.15MiB/s ETA 00:00
+[download] 100% of  312.00MiB in 00:00:38 at 8.10MiB/s
+[download] Destination: /data/downloads/.tmp/Ab12Cd34/Rick Astley - Never Gonna Give You Up [dQw4w9WgXcQ].f251.webm
+[download]   3.1% of ~   4.02MiB at  512.00KiB/s ETA 00:07 (frag 1/35)
+[download]  45.3% of ~   1.02GiB at    5.22MiB/s ETA 01:03:10 (frag 3/35)
+[download] 100% of ~   4.02MiB in 00:00:09 at 445.00KiB/s (frag 35/35)
+[download]  17.0% of  850.25KiB at  900.00KiB/s ETA 00:01
+[download] Resuming download at byte 1048576
+[download] Got error: HTTP Error 403: Forbidden. Retrying (1/10)...
+[Merger] Merging formats into "/data/downloads/.tmp/Ab12Cd34/Rick Astley - Never Gonna Give You Up [dQw4w9WgXcQ].mp4"
+[download] 100% of 1.24GiB in 00:03:12 at 6.61MiB/s
