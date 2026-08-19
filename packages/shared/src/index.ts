@@ -16,3 +16,12 @@ export {
   toGlobalSettings,
 } from './settings-keys.ts'
 export type { Settings, SettingsKey, SettingsPatch } from './settings-keys.ts'
+export {
+  createLogger,
+  defaultConfigDir,
+  isLogLevel,
+  logFilePath,
+  parseLogLine,
+  readLogEntries,
+} from './logger.ts'
+export type { LogEntry, LogLevel, Logger, LoggerOptions, ReadLogOptions } from './logger.ts'

@@ -6,6 +6,7 @@ const navItems = [
   { label: 'Archive', to: '/archive' },
   { label: 'Tasks', to: '/tasks' },
   { label: 'Storage', to: '/storage' },
+  { label: 'Logs', to: '/logs' },
   { label: 'Settings', to: '/settings' },
 ]
 
