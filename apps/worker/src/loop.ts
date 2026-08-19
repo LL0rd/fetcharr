@@ -11,8 +11,15 @@ import {
   type Db,
   type Job,
 } from '@fetcharr/db'
-import { JobOptionsSchema, type GlobalSettings } from '@fetcharr/shared'
+import { JobOptionsSchema, type GlobalSettings, type JobOptions } from '@fetcharr/shared'
 
+import {
+  postProcess,
+  postProcessSettings,
+  type PostProcessFn,
+  type PostProcessInput,
+  type PostProcessResult,
+} from './postprocess.ts'
 import { runDownload, type DownloadHandle, type DownloadResult } from './runner.ts'
 import { getJobStatus, getMaxConcurrent, insertFile, writeHeartbeat } from './store.ts'
 import { createThrottle } from './throttle.ts'
@@ -23,6 +30,8 @@ export interface LoopOptions {
   configDir?: string
   /** Injizierbar für Tests; per Default der echte yt-dlp-Runner. */
   run?: typeof runDownload
+  /** Injizierbar für Tests; per Default NFO/Thumbnail/Crop über ffmpeg. */
+  postProcess?: PostProcessFn
   settings?: GlobalSettings
   pollMs?: number
   cancelCheckMs?: number
@@ -51,6 +60,10 @@ export function startLoop(options: LoopOptions): WorkerLoop {
   const active = new Map<string, DownloadHandle>()
   let stopping = false
 
+  // Die Schalter werden pro Download gelesen, damit Änderungen ohne Neustart greifen.
+  const postProcessor: PostProcessFn =
+    options.postProcess ?? ((input) => postProcess(input, { ...postProcessSettings(db), log }))
+
   function startJob(job: Job): void {
     const parsed = JobOptionsSchema.safeParse(job.options ?? {})
     if (!parsed.success) {
@@ -75,14 +88,18 @@ export function startLoop(options: LoopOptions): WorkerLoop {
     log(`start ${job.uid} ${job.url}`)
 
     handle.result
-      .then((result) => complete(job, result))
+      .then((result) => complete(job, parsed.data, result))
       .catch((error: unknown) => {
         failJob(db, job.uid, String(error))
       })
       .finally(() => active.delete(job.uid))
   }
 
-  function complete(job: Job, result: DownloadResult): void {
+  async function complete(
+    job: Job,
+    jobOptions: JobOptions,
+    result: DownloadResult,
+  ): Promise<void> {
     if (result.status === 'cancelled') {
       log(`cancelled ${job.uid}`)
       return
@@ -95,21 +112,46 @@ export function startLoop(options: LoopOptions): WorkerLoop {
     }
 
     const info = result.info ?? {}
+    const media = await runPostProcess({
+      mediaPath: result.path,
+      thumbnailPath: result.thumbnailPath,
+      info: result.info,
+      options: jobOptions,
+      durationSec: typeof info.duration === 'number' ? info.duration : null,
+      sizeBytes: result.sizeBytes,
+    })
+
     insertFile(db, {
       uid: job.uid,
       url: job.url,
       title: str(info.title) ?? job.title ?? job.url,
       uploader: str(info.uploader) ?? job.uploader,
       type: job.type,
-      path: toLibraryPath(result.path),
-      sizeBytes: result.sizeBytes,
-      durationSec: typeof info.duration === 'number' ? info.duration : null,
-      thumbnailPath: result.thumbnailPath ? toLibraryPath(result.thumbnailPath) : null,
+      path: toLibraryPath(media.mediaPath),
+      sizeBytes: media.sizeBytes,
+      durationSec: media.durationSec,
+      thumbnailPath: media.thumbnailPath ? toLibraryPath(media.thumbnailPath) : null,
       uploadDate: str(info.upload_date),
       info: result.info,
     })
     finishJob(db, job.uid)
-    log(`finished ${job.uid} -> ${result.path}`)
+    log(`finished ${job.uid} -> ${media.mediaPath}`)
+  }
+
+  /** Sidecars und Schnitt dürfen einen fertigen Download nie scheitern lassen. */
+  async function runPostProcess(input: PostProcessInput): Promise<PostProcessResult> {
+    try {
+      return await postProcessor(input)
+    } catch (error) {
+      log(`post-processing failed for ${input.mediaPath}: ${String(error)}`)
+      return {
+        mediaPath: input.mediaPath,
+        thumbnailPath: input.thumbnailPath,
+        durationSec: input.durationSec,
+        sizeBytes: input.sizeBytes ?? null,
+        nfoPath: null,
+      }
+    }
   }
 
   /**

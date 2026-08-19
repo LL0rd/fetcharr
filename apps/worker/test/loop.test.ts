@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createDb, createJob, getJob, type Db } from '@fetcharr/db'
 import { startLoop, type WorkerLoop } from '../src/loop.ts'
 import type { DownloadHandle, DownloadResult, RunDownloadOptions } from '../src/runner.ts'
+import type { PostProcessInput } from '../src/postprocess.ts'
 
 interface FakeRun {
   options: RunDownloadOptions
@@ -193,6 +194,124 @@ describe('startLoop', () => {
     >
     expect(file.path).toBe('video/Test Channel/Test Video [abc123].mp4')
     expect(file.thumbnail_path).toBe('video/Test Channel/Test Video [abc123].jpg')
+  })
+
+  it('runs post-processing before registering the file and stores its results', async () => {
+    const job = queue(db)
+    const runner = fakeRunner()
+    const seen: PostProcessInput[] = []
+
+    loop = startLoop({
+      db,
+      downloadsDir: '/downloads',
+      run: runner.run,
+      postProcess: async (input) => {
+        seen.push(input)
+        return {
+          mediaPath: '/downloads/video/Test Channel/Test Video [abc123].mkv',
+          thumbnailPath: '/downloads/video/Test Channel/Test Video [abc123].jpg',
+          durationSec: 20,
+          sizeBytes: 999,
+          nfoPath: '/downloads/video/Test Channel/Test Video [abc123].nfo',
+        }
+      },
+      ...FAST,
+    })
+    await waitFor(() => runner.runs.length === 1)
+
+    runner.runs[0]!.finish({
+      status: 'finished',
+      path: '/downloads/video/Test Channel/Test Video [abc123].mp4',
+      thumbnailPath: '/downloads/video/Test Channel/Test Video [abc123].webp',
+      info: INFO,
+      sizeBytes: 12345,
+    })
+
+    await waitFor(() => getJob(db, job.uid)?.status === 'finished')
+
+    expect(seen[0]?.mediaPath).toBe('/downloads/video/Test Channel/Test Video [abc123].mp4')
+    expect(seen[0]?.thumbnailPath).toBe('/downloads/video/Test Channel/Test Video [abc123].webp')
+    expect(seen[0]?.durationSec).toBe(42.5)
+
+    const file = db.$client.prepare('SELECT * FROM files WHERE uid = ?').get(job.uid) as Record<
+      string,
+      unknown
+    >
+    expect(file.path).toBe('video/Test Channel/Test Video [abc123].mkv')
+    expect(file.thumbnail_path).toBe('video/Test Channel/Test Video [abc123].jpg')
+    expect(file.duration_sec).toBe(20)
+    expect(file.size_bytes).toBe(999)
+  })
+
+  it('passes the crop marks from the job options to post-processing', async () => {
+    createJob(db, {
+      url: 'https://example.com/crop',
+      type: 'video',
+      options: { format: 'best', sponsorblock: 'off', cropStart: '00:00:10', cropEnd: '00:01:00' },
+    })
+    const runner = fakeRunner()
+    const seen: PostProcessInput[] = []
+
+    loop = startLoop({
+      db,
+      downloadsDir: '/downloads',
+      run: runner.run,
+      postProcess: async (input) => {
+        seen.push(input)
+        return {
+          mediaPath: input.mediaPath,
+          thumbnailPath: input.thumbnailPath,
+          durationSec: input.durationSec,
+          sizeBytes: input.sizeBytes ?? null,
+          nfoPath: null,
+        }
+      },
+      ...FAST,
+    })
+    await waitFor(() => runner.runs.length === 1)
+
+    runner.runs[0]!.finish({
+      status: 'finished',
+      path: '/downloads/video/Test Channel/Test Video [abc123].mp4',
+      thumbnailPath: null,
+      info: INFO,
+      sizeBytes: 12345,
+    })
+
+    await waitFor(() => seen.length === 1)
+    expect(seen[0]!.options.cropStart).toBe('00:00:10')
+    expect(seen[0]!.options.cropEnd).toBe('00:01:00')
+  })
+
+  it('still registers the file when post-processing throws', async () => {
+    const job = queue(db)
+    const runner = fakeRunner()
+
+    loop = startLoop({
+      db,
+      downloadsDir: '/downloads',
+      run: runner.run,
+      postProcess: () => Promise.reject(new Error('ffmpeg missing')),
+      ...FAST,
+    })
+    await waitFor(() => runner.runs.length === 1)
+
+    runner.runs[0]!.finish({
+      status: 'finished',
+      path: '/downloads/video/Test Channel/Test Video [abc123].mp4',
+      thumbnailPath: null,
+      info: INFO,
+      sizeBytes: 12345,
+    })
+
+    await waitFor(() => getJob(db, job.uid)?.status === 'finished')
+
+    const file = db.$client.prepare('SELECT * FROM files WHERE uid = ?').get(job.uid) as Record<
+      string,
+      unknown
+    >
+    expect(file.path).toBe('video/Test Channel/Test Video [abc123].mp4')
+    expect(file.size_bytes).toBe(12345)
   })
 
   it('errors the job and keeps stderr when the last attempt fails', async () => {
