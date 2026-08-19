@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Fetcharr">
+  <rect width="512" height="512" fill="#ec3013"/>
+  <g fill="#f3f2f2">
+    <rect x="160" y="128" width="192" height="48"/>
+    <rect x="160" y="216" width="144" height="48"/>
+    <rect x="160" y="128" width="48" height="176"/>
+    <path d="M160 304h96l-48 88z"/>
+  </g>
+</svg>

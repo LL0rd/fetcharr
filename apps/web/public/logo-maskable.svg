@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Fetcharr">
+  <rect width="512" height="512" fill="#ec3013"/>
+  <!-- Scaled to 72% so the glyph survives the circular safe zone Android crops to. -->
+  <g fill="#f3f2f2" transform="translate(256 256) scale(0.72) translate(-256 -256)">
+    <rect x="160" y="128" width="192" height="48"/>
+    <rect x="160" y="216" width="144" height="48"/>
+    <rect x="160" y="128" width="48" height="176"/>
+    <path d="M160 304h96l-48 88z"/>
+  </g>
+</svg>

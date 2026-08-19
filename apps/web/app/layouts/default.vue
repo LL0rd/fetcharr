@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // Das URL-Feld sitzt im Header, der Dialog gehört über die ganze App — deshalb
-// hält das Layout die URL, mit der geprobt wird.
-const probeUrl = ref('')
+// hält das Layout die URL, mit der geprobt wird. Als useState, damit auch eine
+// Seite den Dialog öffnen kann (siehe pages/share.vue).
+const probeUrl = useState<string>('probe-url', () => '')
 const bulkOpen = ref(false)
 
 // Ein frisch eingereihter Job soll sofort sichtbar sein, auch wenn der

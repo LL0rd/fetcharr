@@ -7,6 +7,7 @@ import { SETTINGS_TABS, diffSettings } from '~/components/settings/settings-form
 // würde die Komponenten sonst SettingsSettingsDownloader nennen.
 import SettingsAdvanced from '~/components/settings/SettingsAdvanced.vue'
 import SettingsApi from '~/components/settings/SettingsApi.vue'
+import BookmarkletHint from '~/components/settings/BookmarkletHint.vue'
 import SettingsDownloader from '~/components/settings/SettingsDownloader.vue'
 import SettingsExtra from '~/components/settings/SettingsExtra.vue'
 import SettingsNotifications from '~/components/settings/SettingsNotifications.vue'
@@ -107,11 +108,10 @@ async function save(): Promise<void> {
       <div class="set-panel">
         <SettingsDownloader v-if="tab === 'Downloader'" :draft="draft" />
         <SettingsExtra v-else-if="tab === 'Extra'" :draft="draft" />
-        <SettingsApi
-          v-else-if="tab === 'API'"
-          :api-key="apiKey"
-          @regenerated="apiKey = $event"
-        />
+        <div v-else-if="tab === 'API'" class="set-api">
+          <SettingsApi :api-key="apiKey" @regenerated="apiKey = $event" />
+          <BookmarkletHint />
+        </div>
         <SettingsSubscriptions v-else-if="tab === 'Subscriptions'" :draft="draft" />
         <SettingsNotifications v-else-if="tab === 'Notifications'" :draft="draft" />
         <SettingsAdvanced v-else :draft="draft" />
@@ -151,4 +151,5 @@ async function save(): Promise<void> {
 .set-tab-on { background: var(--color-surface); font-weight: 600; color: var(--color-accent); }
 
 .set-panel { flex: 1; max-width: 640px; }
+.set-api { display: flex; flex-direction: column; gap: 18px; }
 </style>
