@@ -11,15 +11,22 @@ let db: Db
 let handler: Handler
 let collectUpdates: typeof import('../server/api/events.get.ts').collectUpdates
 let stream: { push: ReturnType<typeof vi.fn>; onClosed: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn>; send: ReturnType<typeof vi.fn> }
+let callOrder: string[]
 
 beforeEach(async () => {
   ;({ db } = setupNitroGlobals())
 
+  callOrder = []
   stream = {
-    push: vi.fn(async () => {}),
+    push: vi.fn(async () => {
+      callOrder.push('push')
+    }),
     onClosed: vi.fn(),
     close: vi.fn(async () => {}),
-    send: vi.fn(() => 'stream'),
+    send: vi.fn(() => {
+      callOrder.push('send')
+      return 'stream'
+    }),
   }
   vi.stubGlobal('createEventStream', () => stream)
 
@@ -82,6 +89,9 @@ describe('GET /api/events', () => {
     const result = await handler({})
 
     expect(result).toBe('stream')
+    // send() muss zuerst kommen: es setzt die Header und liest den Stream leer.
+    // Ein push davor blockiert und die Antwort bliebe ohne ein einziges Byte.
+    expect(callOrder).toEqual(['send', 'push'])
     expect(stream.push).toHaveBeenCalledTimes(1)
     const [message] = stream.push.mock.calls[0]!
     expect(message.event).toBe('jobs')

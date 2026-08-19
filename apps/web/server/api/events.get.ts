@@ -29,7 +29,6 @@ export default defineEventHandler(async (event) => {
     await stream.push({ event: 'jobs', data: payload })
   }
 
-  await tick()
   const timer = setInterval(() => {
     void tick()
   }, POLL_MS)
@@ -39,7 +38,13 @@ export default defineEventHandler(async (event) => {
     await stream.close()
   })
 
-  return stream.send()
+  // Reihenfolge ist zwingend: `send()` setzt die Header und hängt den Leser an den
+  // internen TransformStream. Ein `push()` davor wartet ewig auf Backpressure —
+  // der Handler käme nie bis `send()` und die Antwort bliebe komplett leer.
+  const sending = stream.send()
+  void tick()
+
+  return sending
 })
 
 /** Alle Jobs, die seit dem Cursor angefasst wurden, plus dem neuen Cursor (ms). */
