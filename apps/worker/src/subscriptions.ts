@@ -8,6 +8,7 @@ import {
 import type { JobOptions } from '@fetcharr/shared'
 import { execa } from 'execa'
 
+import { notifySubscriptionFound } from './notify.ts'
 import { ytdlpPath } from './ytdlp.ts'
 
 /**
@@ -120,6 +121,14 @@ export async function checkSubscription(
   }
 
   log(`subscription ${sub.name}: ${entries.length} entries, ${jobs.length} new`)
+
+  if (jobs.length) {
+    // Der Fund selbst ist die Nachricht — die Downloads melden sich später einzeln.
+    void notifySubscriptionFound(db, { name: sub.name, count: jobs.length }, { log }).catch(
+      (error: unknown) => log(`notification failed: ${String(error)}`),
+    )
+  }
+
   return { found: entries.length, created: jobs.length, skipped, jobs }
 }
 

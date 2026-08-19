@@ -23,6 +23,7 @@ import {
   type PostProcessInput,
   type PostProcessResult,
 } from './postprocess.ts'
+import { notifyDownloadError, notifyDownloadFinished } from './notify.ts'
 import { runDownload, type DownloadHandle, type DownloadResult } from './runner.ts'
 import { extractorFromUrl } from './subscriptions.ts'
 import { getJobStatus, getMaxConcurrent, insertFile, writeHeartbeat } from './store.ts'
@@ -68,10 +69,36 @@ export function startLoop(options: LoopOptions): WorkerLoop {
   const postProcessor: PostProcessFn =
     options.postProcess ?? ((input) => postProcess(input, { ...postProcessSettings(db), log }))
 
+  /**
+   * Jeder Fehlschlag geht auch als Notification raus — inklusive der Zwischen-
+   * versuche, damit im Center sichtbar bleibt, dass noch ein Retry aussteht.
+   */
+  function fail(job: Job, reason: string): void {
+    const failed = failJob(db, job.uid, reason)
+    if (!failed) return
+
+    notify(
+      notifyDownloadError(
+        db,
+        {
+          title: failed.title ?? failed.url,
+          attempts: failed.attempts,
+          maxAttempts: failed.maxAttempts,
+        },
+        { log },
+      ),
+    )
+  }
+
+  /** Notifications dürfen den Download-Ablauf weder bremsen noch scheitern lassen. */
+  function notify(pending: Promise<unknown>): void {
+    void pending.catch((error: unknown) => log(`notification failed: ${String(error)}`))
+  }
+
   function startJob(job: Job): void {
     const parsed = JobOptionsSchema.safeParse(job.options ?? {})
     if (!parsed.success) {
-      failJob(db, job.uid, `Invalid job options: ${parsed.error.message}`)
+      fail(job, `Invalid job options: ${parsed.error.message}`)
       return
     }
 
@@ -94,7 +121,7 @@ export function startLoop(options: LoopOptions): WorkerLoop {
     handle.result
       .then((result) => complete(job, parsed.data, result))
       .catch((error: unknown) => {
-        failJob(db, job.uid, String(error))
+        fail(job, String(error))
       })
       .finally(() => active.delete(job.uid))
   }
@@ -110,7 +137,7 @@ export function startLoop(options: LoopOptions): WorkerLoop {
     }
 
     if (result.status === 'failed') {
-      failJob(db, job.uid, result.stderr.slice(-STDERR_LIMIT) || 'yt-dlp failed without output')
+      fail(job, result.stderr.slice(-STDERR_LIMIT) || 'yt-dlp failed without output')
       log(`failed ${job.uid}`)
       return
     }
@@ -125,10 +152,12 @@ export function startLoop(options: LoopOptions): WorkerLoop {
       sizeBytes: result.sizeBytes,
     })
 
+    const title = str(info.title) ?? job.title ?? job.url
+
     insertFile(db, {
       uid: job.uid,
       url: job.url,
-      title: str(info.title) ?? job.title ?? job.url,
+      title,
       uploader: str(info.uploader) ?? job.uploader,
       type: job.type,
       path: toLibraryPath(media.mediaPath),
@@ -140,6 +169,9 @@ export function startLoop(options: LoopOptions): WorkerLoop {
     })
     finishJob(db, job.uid)
     recordSubscriptionResult(job, info)
+    notify(
+      notifyDownloadFinished(db, { title, sizeBytes: media.sizeBytes, uid: job.uid }, { log }),
+    )
     log(`finished ${job.uid} -> ${media.mediaPath}`)
   }
 
