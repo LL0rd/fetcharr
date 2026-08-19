@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, real, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
@@ -32,6 +32,7 @@ export const jobs = sqliteTable('jobs', {
   stderr: text('stderr'),
   attempts: integer('attempts').notNull().default(0),
   maxAttempts: integer('max_attempts').notNull().default(3),
+  subId: text('sub_id'),
   pid: integer('pid'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
@@ -54,6 +55,7 @@ export const files = sqliteTable('files', {
   favorite: integer('favorite', { mode: 'boolean' }).notNull().default(false),
   viewCount: integer('view_count').notNull().default(0),
   resumePositionSec: real('resume_position_sec'),
+  subId: text('sub_id'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 })
 
@@ -63,3 +65,37 @@ export type FileRow = typeof files.$inferSelect
 export type NewFileRow = typeof files.$inferInsert
 export type JobStatus = Job['status']
 export type MediaType = Job['type']
+
+export const subscriptions = sqliteTable('subscriptions', {
+  id: text('id').primaryKey(),             // nanoid
+  url: text('url').notNull(),
+  name: text('name').notNull(),
+  type: text('type', { enum: ['channel', 'playlist', 'generic'] }).notNull().default('channel'),
+  mediaType: text('media_type', { enum: ['video', 'audio'] }).notNull().default('video'),
+  cron: text('cron').notNull().default('0 */6 * * *'),
+  paused: integer('paused', { mode: 'boolean' }).notNull().default(false),
+  timerangeFrom: text('timerange_from'),   // YYYYMMDD — nur Videos ab diesem Datum
+  titleRegex: text('title_regex'),
+  maxQuality: text('max_quality'),         // best/1080p/720p (JobOptions.format)
+  customArgs: text('custom_args'),
+  customOutput: text('custom_output'),
+  sponsorblock: text('sponsorblock', { enum: ['remove', 'mark', 'off'] }).notNull().default('off'),
+  recordLivestreams: integer('record_livestreams', { mode: 'boolean' }).notNull().default(false),
+  redownloadFreshUploads: integer('redownload_fresh_uploads', { mode: 'boolean' }).notNull().default(false),
+  rssEnabled: integer('rss_enabled', { mode: 'boolean' }).notNull().default(false),
+  checking: integer('checking', { mode: 'boolean' }).notNull().default(false),
+  checkRequested: integer('check_requested', { mode: 'boolean' }).notNull().default(false),
+  lastCheckAt: integer('last_check_at', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+})
+
+export const archive = sqliteTable('archive', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  extractor: text('extractor').notNull(),
+  mediaId: text('media_id').notNull(),
+  type: text('type', { enum: ['video', 'audio'] }).notNull().default('video'),
+  subId: text('sub_id'),
+  title: text('title'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+}, (t) => [uniqueIndex('archive_entry').on(t.extractor, t.mediaId, t.subId)])

@@ -35,6 +35,12 @@ importers:
       archiver:
         specifier: ^8.0.0
         version: 8.0.0
+      croner:
+        specifier: ^10.0.1
+        version: 10.0.1
+      feed:
+        specifier: ^6.0.0
+        version: 6.0.0
       nanoid:
         specifier: ^6.0.1
         version: 6.0.1
@@ -60,6 +66,9 @@ importers:
       '@fetcharr/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      croner:
+        specifier: ^10.0.1
+        version: 10.0.1
       execa:
         specifier: ^10.0.1
         version: 10.0.1
@@ -2281,6 +2290,10 @@ packages:
       picomatch:
         optional: true
 
+  feed@6.0.0:
+    resolution: {integrity: sha512-rvFOF1POce0ijAKy3tZN5T8PuprgIit/VbMyXJWcoYwcMOTSIJ7NqZb8DTLPJr77yiEO27kidm/fw0kcSIV+ww==}
+    engines: {node: '>=20', pnpm: '>=10'}
+
   figures@6.1.0:
     resolution: {integrity: sha512-d+l3qxjSesT4V7v2fh+QnmFnUWv9lSpjarhShNTgBOfA0ttejbQUAlHLitbjkoRiDulW0OPoQPYIGhIC8ohejg==}
     engines: {node: '>=18'}
@@ -3954,6 +3967,10 @@ packages:
   wsl-utils@1.0.0:
     resolution: {integrity: sha512-Hl0ZOAs672vg+06kfujwRhoS6/jehvULrlFkuF2dRu6pHgA8U06h3xqNIqNNU1LTXPcedxByAR4GS6pwQK0mgA==}
     engines: {node: '>=20'}
+
+  xml-js@1.6.11:
+    resolution: {integrity: sha512-7rVi2KMfwfWFl+GpPg6m80IVMWXLRjO+PxTq7V2CDhoGak0wzYzFgUY2m4XJ47OGdXd8eLE8EmwfAmdjw7lC1g==}
+    hasBin: true
 
   y18n@5.0.8:
     resolution: {integrity: sha512-0pfFzegeDWJHJIAmTLRP2DwHjdF5s7jo9tuztdQxAhINCdvS+3nGINqPd00AphqJR/0LhANUS6/+7SCb98YOfA==}
@@ -6119,6 +6136,10 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.5
 
+  feed@6.0.0:
+    dependencies:
+      xml-js: 1.6.11
+
   figures@6.1.0:
     dependencies:
       is-unicode-supported: 2.1.0
@@ -7898,6 +7919,10 @@ snapshots:
     dependencies:
       is-wsl: 3.1.1
       powershell-utils: 0.1.0
+
+  xml-js@1.6.11:
+    dependencies:
+      sax: 1.6.1
 
   y18n@5.0.8: {}
 
