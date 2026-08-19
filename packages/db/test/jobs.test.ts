@@ -37,10 +37,16 @@ function backdate(uid: string, secondsAgo: number): void {
     .run(secondsAgo, secondsAgo, uid)
 }
 
-/** Wartezeit bis zum nächsten Versuch, gerundet auf ganze Sekunden. */
+/**
+ * Wartezeit bis zum nächsten Versuch. Bezugspunkt ist `unixepoch()` der
+ * Datenbank — `Date.now()` liefert Millisekunden und läge je nach Moment eine
+ * Sekunde daneben.
+ */
 function delaySeconds(job: { notBefore: Date | null }): number | null {
   if (!job.notBefore) return null
-  return Math.round((job.notBefore.getTime() - Date.now()) / 1000)
+
+  const { now } = db.$client.prepare('SELECT unixepoch() AS now').get() as { now: number }
+  return Math.round(job.notBefore.getTime() / 1000) - now
 }
 
 describe('createJob', () => {
