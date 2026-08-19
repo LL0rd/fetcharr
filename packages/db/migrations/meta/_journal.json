@@ -22,6 +22,13 @@
       "when": 1787143285246,
       "tag": "0002_parallel_catseye",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1787143946394,
+      "tag": "0003_clumsy_banshee",
+      "breakpoints": true
     }
   ]
 }

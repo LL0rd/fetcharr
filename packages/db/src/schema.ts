@@ -33,6 +33,7 @@ export const jobs = sqliteTable('jobs', {
   attempts: integer('attempts').notNull().default(0),
   maxAttempts: integer('max_attempts').notNull().default(3),
   subId: text('sub_id'),
+  notBefore: integer('not_before', { mode: 'timestamp' }),
   pid: integer('pid'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
@@ -99,3 +100,35 @@ export const archive = sqliteTable('archive', {
   title: text('title'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 }, (t) => [uniqueIndex('archive_entry').on(t.extractor, t.mediaId, t.subId)])
+
+export const tasks = sqliteTable('tasks', {
+  key: text('key').primaryKey(),
+  schedule: text('schedule', { mode: 'json' }),   // {type:'recurring',cron} | {type:'once',timestamp} | null
+  options: text('options', { mode: 'json' }),      // pro Task, inkl. auto_confirm
+  running: integer('running', { mode: 'boolean' }).notNull().default(false),
+  confirming: integer('confirming', { mode: 'boolean' }).notNull().default(false),
+  confirmPayload: text('confirm_payload', { mode: 'json' }), // Run-Ergebnis, das auf Bestätigung wartet
+  lastRanAt: integer('last_ran_at', { mode: 'timestamp' }),
+  lastConfirmedAt: integer('last_confirmed_at', { mode: 'timestamp' }),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+})
+
+export const taskRuns = sqliteTable('task_runs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  taskKey: text('task_key').notNull(),
+  phase: text('phase', { enum: ['run', 'confirm'] }).notNull().default('run'),
+  startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),
+  durationMs: integer('duration_ms'),
+  summary: text('summary'),
+  error: text('error'),
+})
+
+export const notifications = sqliteTable('notifications', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  type: text('type').notNull(),   // download_finished | download_error | subscription_found | task_confirm | system
+  title: text('title').notNull(),
+  body: text('body'),
+  url: text('url'),
+  read: integer('read', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+})
