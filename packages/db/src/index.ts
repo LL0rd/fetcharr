@@ -8,6 +8,7 @@ import * as schema from './schema.ts'
 
 export * from './schema.ts'
 export * as schema from './schema.ts'
+export * from './jobs.ts'
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL('../migrations', import.meta.url))
 
