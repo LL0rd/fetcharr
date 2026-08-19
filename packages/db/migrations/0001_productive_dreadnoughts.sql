@@ -1,0 +1,1 @@
+ALTER TABLE `files` ADD `resume_position_sec` real;

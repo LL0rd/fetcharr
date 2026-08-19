@@ -53,6 +53,7 @@ export const files = sqliteTable('files', {
   infoJson: text('info_json', { mode: 'json' }),
   favorite: integer('favorite', { mode: 'boolean' }).notNull().default(false),
   viewCount: integer('view_count').notNull().default(0),
+  resumePositionSec: real('resume_position_sec'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 })
 

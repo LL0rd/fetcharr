@@ -15,9 +15,13 @@
     "@fetcharr/shared": "workspace:*",
     "@fontsource/archivo": "^5.3.0",
     "@node-rs/argon2": "^2.1.0",
+    "archiver": "^8.0.0",
     "nanoid": "^6.0.1",
     "nuxt": "^4.5.2",
     "vue": "^3.5.41",
     "vue-router": "^5.2.0"
+  },
+  "devDependencies": {
+    "@types/archiver": "^8.0.0"
   }
 }
