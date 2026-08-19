@@ -8,6 +8,7 @@ import {
   listArchive,
   type Db,
 } from '@fetcharr/db'
+import { SETTINGS_KEYS, buildArgs } from '@fetcharr/shared'
 import { startLoop, type WorkerLoop } from '../src/loop.ts'
 import type { DownloadHandle, DownloadResult, RunDownloadOptions } from '../src/runner.ts'
 import type { PostProcessInput } from '../src/postprocess.ts'
@@ -70,6 +71,16 @@ function queue(db: Db, url = 'https://example.com/a') {
   return createJob(db, { url, type: 'video', options: { format: 'best', sponsorblock: 'off' } })
 }
 
+/** Schreibt einen Setting-Wert so, wie ihn die Web-App ablegt: als JSON. */
+function putSetting(db: Db, key: string, value: unknown): void {
+  db.$client
+    .prepare(
+      `INSERT INTO settings (key, value) VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    )
+    .run(key, JSON.stringify(value))
+}
+
 function setting(db: Db, key: string): unknown {
   const row = db.$client.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
     | { value: string }
@@ -103,10 +114,7 @@ describe('startLoop', () => {
   })
 
   it('honours max_concurrent_downloads from the settings table', async () => {
-    db.$client.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run(
-      'max_concurrent_downloads',
-      '1',
-    )
+    putSetting(db, SETTINGS_KEYS.maxConcurrentDownloads, 1)
     for (let index = 0; index < 3; index += 1) queue(db, `https://example.com/${index}`)
     const runner = fakeRunner()
 
@@ -115,6 +123,49 @@ describe('startLoop', () => {
     await waitFor(() => runner.runs.length === 1)
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(runner.runs.length).toBe(1)
+  })
+
+  it('passes the global download settings from the database into the yt-dlp args', async () => {
+    putSetting(db, SETTINGS_KEYS.rateLimit, '2M')
+    putSetting(db, SETTINGS_KEYS.outputTemplate, '%(title)s')
+    putSetting(db, SETTINGS_KEYS.customArgs, '--no-part')
+    queue(db)
+    const runner = fakeRunner()
+
+    loop = startLoop({ db, downloadsDir: '/downloads', run: runner.run, ...FAST })
+    await waitFor(() => runner.runs.length === 1)
+
+    const { job, settings } = runner.runs[0]!.options
+    expect(settings).toEqual({
+      outputTemplate: '%(title)s',
+      rateLimit: '2M',
+      customArgs: '--no-part',
+    })
+
+    const args = buildArgs({ type: job.type, options: job.options }, settings ?? {}, {
+      downloadsDir: '/downloads',
+    })
+    expect(args[args.indexOf('-r') + 1]).toBe('2M')
+    expect(args[args.indexOf('-o') + 1]).toBe('/downloads/video/%(title)s.%(ext)s')
+    expect(args).toContain('--no-part')
+  })
+
+  it('picks up a settings change without a restart', async () => {
+    queue(db, 'https://example.com/first')
+    queue(db, 'https://example.com/second')
+    putSetting(db, SETTINGS_KEYS.maxConcurrentDownloads, 1)
+    putSetting(db, SETTINGS_KEYS.rateLimit, '1M')
+    const runner = fakeRunner()
+
+    loop = startLoop({ db, downloadsDir: '/downloads', run: runner.run, ...FAST })
+    await waitFor(() => runner.runs.length === 1)
+    expect(runner.runs[0]!.options.settings?.rateLimit).toBe('1M')
+
+    putSetting(db, SETTINGS_KEYS.rateLimit, '5M')
+    runner.runs[0]!.finish({ status: 'cancelled', stderr: '' })
+
+    await waitFor(() => runner.runs.length === 2)
+    expect(runner.runs[1]!.options.settings?.rateLimit).toBe('5M')
   })
 
   it('writes title and uploader back as soon as the info json arrives', async () => {

@@ -1,4 +1,5 @@
 import type { Db } from '@fetcharr/db'
+import { SETTINGS_KEYS, toGlobalSettings, type GlobalSettings } from '@fetcharr/shared'
 
 /** Direkte SQL-Zugriffe des Workers jenseits des Job-Repositories. */
 
@@ -18,8 +19,24 @@ export function getSetting(db: Db, key: string): unknown {
 }
 
 export function getMaxConcurrent(db: Db): number {
-  const value = Number(getSetting(db, 'max_concurrent_downloads'))
+  const value = Number(getSetting(db, SETTINGS_KEYS.maxConcurrentDownloads))
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : DEFAULT_MAX_CONCURRENT
+}
+
+/**
+ * Die Settings, die in die yt-dlp-Args einfließen. Wird pro Job frisch gelesen,
+ * damit eine Änderung im Web ohne Worker-Neustart beim nächsten Download greift.
+ */
+export function readGlobalSettings(db: Db): GlobalSettings {
+  return toGlobalSettings({
+    output_template: asString(getSetting(db, SETTINGS_KEYS.outputTemplate)),
+    rate_limit: asString(getSetting(db, SETTINGS_KEYS.rateLimit)),
+    custom_args: asString(getSetting(db, SETTINGS_KEYS.customArgs)),
+  })
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
 }
 
 /** Lebenszeichen für den Health-Endpoint: Unix-Sekunden, im Sekundentakt der DB. */

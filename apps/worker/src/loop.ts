@@ -26,7 +26,13 @@ import {
 import { notifyDownloadError, notifyDownloadFinished } from './notify.ts'
 import { runDownload, type DownloadHandle, type DownloadResult } from './runner.ts'
 import { extractorFromUrl } from './subscriptions.ts'
-import { getJobStatus, getMaxConcurrent, insertFile, writeHeartbeat } from './store.ts'
+import {
+  getJobStatus,
+  getMaxConcurrent,
+  insertFile,
+  readGlobalSettings,
+  writeHeartbeat,
+} from './store.ts'
 import { createThrottle } from './throttle.ts'
 
 export interface LoopOptions {
@@ -37,6 +43,7 @@ export interface LoopOptions {
   run?: typeof runDownload
   /** Injizierbar für Tests; per Default NFO/Thumbnail/Crop über ffmpeg. */
   postProcess?: PostProcessFn
+  /** Test-Override; im Betrieb kommen die Settings pro Job frisch aus der DB. */
   settings?: GlobalSettings
   pollMs?: number
   cancelCheckMs?: number
@@ -106,7 +113,7 @@ export function startLoop(options: LoopOptions): WorkerLoop {
     const handle = run({
       job: { uid: job.uid, url: job.url, type: job.type, options: parsed.data },
       downloadsDir,
-      settings: options.settings,
+      settings: options.settings ?? readGlobalSettings(db),
       cookiesPath: cookiesPath(options.configDir),
       onInfo: (info) => setJobMeta(db, job.uid, { title: info.title, uploader: info.uploader }),
       onProgress: (update) => {
