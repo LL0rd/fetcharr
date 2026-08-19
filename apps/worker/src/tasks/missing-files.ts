@@ -33,6 +33,7 @@ export function missingFilesCheckTask(): TaskDefinition {
         summary: `${String(items.length)} von ${String(files.length)} Einträgen ohne Datei`,
         payload: { items } satisfies MissingPayload,
         needsConfirm: items.length > 0,
+        count: items.length,
       }
     },
 

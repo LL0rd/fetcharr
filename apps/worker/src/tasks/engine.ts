@@ -17,6 +17,7 @@ import {
 } from '@fetcharr/db'
 import { Cron } from 'croner'
 
+import { notifyTaskConfirm } from '../notify.ts'
 import { defaultTasks } from './registry.ts'
 import { boolOption, message, type TaskContext, type TaskDefinition } from './types.ts'
 
@@ -33,6 +34,8 @@ export interface TaskEngineOptions {
   downloadsDir?: string
   /** Injizierbar für Tests; per Default die echten Wartungs-Tasks. */
   tasks?: TaskDefinition[]
+  /** Injizierbar für Tests; per Default die Notification „Task needs confirmation". */
+  notifyConfirm?: (run: { task: string; count?: number | null }) => Promise<unknown>
   pollMs?: number
   log?: (message: string) => void
 }
@@ -56,6 +59,10 @@ export function startTaskEngine(options: TaskEngineOptions): TaskEngine {
   const definitions = new Map(
     (options.tasks ?? defaultTasks()).map((task) => [task.key, task] as const),
   )
+
+  const notifyConfirm =
+    options.notifyConfirm ?? ((run: { task: string; count?: number | null }) =>
+      notifyTaskConfirm(db, run, { log }))
 
   const crons = new Map<string, Cron>()
   const pending = new Set<Promise<void>>()
@@ -99,8 +106,18 @@ export function startTaskEngine(options: TaskEngineOptions): TaskEngine {
       log(`task ${key}: ${outcome.summary}`)
 
       if (needsConfirm && outcome.payload != null) {
-        if (boolOption(task.options, 'auto_confirm', false)) await confirm(key)
-        else log(`task ${key}: waiting for confirmation`)
+        if (boolOption(task.options, 'auto_confirm', false)) {
+          await confirm(key)
+        } else {
+          log(`task ${key}: waiting for confirmation`)
+          // Eine wartende Bestätigung ist der einzige Task-Zustand, der jemanden
+          // braucht — sie darf nicht nur im Log stehen.
+          await notifyConfirm({ task: definition.title, count: outcome.count ?? null }).catch(
+            (error: unknown) => {
+              log(`task ${key}: notification failed: ${message(error)}`)
+            },
+          )
+        }
       }
     } catch (error) {
       endTaskRun(db, key, {})

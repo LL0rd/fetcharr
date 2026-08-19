@@ -21,6 +21,8 @@ export interface TaskRunOutcome {
   payload?: unknown
   /** `false`, wenn es nichts zu bestätigen gibt (z. B. keine Treffer). */
   needsConfirm?: boolean
+  /** Anzahl der gefundenen Einträge — steht so in der Notification. */
+  count?: number
 }
 
 export interface TaskConfirmOutcome {

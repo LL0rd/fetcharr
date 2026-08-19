@@ -63,6 +63,7 @@ export function importYoutubedlMaterialTask(): TaskDefinition {
           (skipped ? `, ${String(skipped)} ohne Medium übersprungen` : ''),
         payload: { files, archive, skipped } satisfies ImportPayload,
         needsConfirm: files.length > 0 || archive.length > 0,
+        count: files.length + archive.length,
       }
     },
 

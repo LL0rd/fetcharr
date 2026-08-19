@@ -3,6 +3,7 @@ import {
   createDb,
   ensureTask,
   getTask,
+  listNotifications,
   listTaskRuns,
   requestTaskConfirm,
   requestTaskRun,
@@ -56,8 +57,26 @@ function recorder(): Recorder {
   return { runs: [], confirms: [] }
 }
 
+interface NotifyCall {
+  task: string
+  count: number | null
+}
+
+let notified: NotifyCall[]
+
 function start(tasks: TaskDefinition[], pollMs = 20): TaskEngine {
-  engine = startTaskEngine({ db, tasks, pollMs, configDir: '/tmp', downloadsDir: '/tmp' })
+  notified = []
+  engine = startTaskEngine({
+    db,
+    tasks,
+    pollMs,
+    configDir: '/tmp',
+    downloadsDir: '/tmp',
+    notifyConfirm: (call) => {
+      notified.push({ task: call.task, count: call.count ?? null })
+      return Promise.resolve()
+    },
+  })
   return engine
 }
 
@@ -107,6 +126,54 @@ describe('run-Phase', () => {
     expect(task.confirmPayload).toBeNull()
     expect(task.lastConfirmedAt).toBeInstanceOf(Date)
     expect(listTaskRuns(db, { key: 'demo' }).map((run) => run.phase)).toEqual(['confirm', 'run'])
+  })
+
+  it('meldet einen wartenden Task als Notification', async () => {
+    const rec = recorder()
+    const task = fakeTask('demo', rec, {
+      run: () =>
+        Promise.resolve({ summary: 'demo geprüft', payload: { uids: ['a', 'b', 'c'] }, count: 3 }),
+    })
+    ensureTask(db, { key: 'demo' })
+    await start([task]).run('demo')
+
+    expect(notified).toEqual([{ task: 'demo', count: 3 }])
+  })
+
+  it('schreibt die Notification per Default in die Datenbank', async () => {
+    const rec = recorder()
+    ensureTask(db, { key: 'demo' })
+    engine = startTaskEngine({
+      db,
+      tasks: [fakeTask('demo', rec, { title: 'Missing files check' })],
+      pollMs: 20,
+      configDir: '/tmp',
+      downloadsDir: '/tmp',
+    })
+    await engine.run('demo')
+
+    const entries = listNotifications(db).notifications
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({ type: 'task_confirm', title: 'Task needs confirmation' })
+    expect(entries[0]!.body).toContain('Missing files check')
+  })
+
+  it('meldet nichts, wenn der Task sich selbst bestätigt', async () => {
+    const rec = recorder()
+    ensureTask(db, { key: 'demo', options: { auto_confirm: true } })
+    await start([fakeTask('demo', rec)]).run('demo')
+
+    expect(notified).toEqual([])
+  })
+
+  it('meldet nichts, wenn es nichts zu bestätigen gibt', async () => {
+    const rec = recorder()
+    const task = fakeTask('demo', rec, {
+      run: () => Promise.resolve({ summary: 'nichts gefunden', needsConfirm: false }),
+    })
+    await start([task]).run('demo')
+
+    expect(notified).toEqual([])
   })
 
   it('speichert kein Ergebnis, wenn der Task keine Bestätigung braucht', async () => {

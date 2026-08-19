@@ -46,6 +46,7 @@ export function duplicateFilesCheckTask(): TaskDefinition {
         summary: `${String(duplicates)} Duplikate in ${String(groups.length)} Gruppen`,
         payload: { groups } satisfies DuplicatePayload,
         needsConfirm: duplicates > 0,
+        count: duplicates,
       })
     },
 

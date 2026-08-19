@@ -45,6 +45,7 @@ export function deleteOldFilesTask(): TaskDefinition {
         summary: `${String(items.length)} Dateien älter als ${String(thresholdDays)} Tage`,
         payload: { items, thresholdDays } satisfies OldPayload,
         needsConfirm: items.length > 0,
+        count: items.length,
       })
     },
 
