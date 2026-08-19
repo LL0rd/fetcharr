@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="./styles.css">
+<style>
+@keyframes fa-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+body{margin:0;font-family:var(--font-body);background:var(--color-bg);color:var(--color-text)}
+a{color:var(--color-accent)}a:hover{color:var(--color-accent-700)}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--color-neutral-400)}::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+<sc-if value="{{ isAuth }}" hint-placeholder-val="{{ false }}">
+<div style="height:100vh;display:grid;place-items:center;background:var(--color-bg)">
+  <div style="width:380px;background:var(--color-surface);box-shadow:var(--shadow-lg);padding:28px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:14px;height:14px;background:var(--color-accent)"></div>
+      <div style="font-family:var(--font-heading);font-weight:800;font-size:22px;letter-spacing:-0.01em">FETCHARR</div>
+    </div>
+    <div style="display:flex;border:1px solid var(--color-divider)">
+      <button onClick="{{ setAuthSetup }}" style="{{ authSetupStyle }}">First-run setup</button>
+      <button onClick="{{ setAuthLogin }}" style="{{ authLoginStyle }}">Login</button>
+    </div>
+    <sc-if value="{{ isSetup }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="field"><label>Admin password</label><input class="input" type="password" placeholder="Minimum 12 characters"></div>
+        <div class="field"><label>Repeat password</label><input class="input" type="password" placeholder="Repeat"></div>
+        <button class="btn btn-primary btn-block" onClick="{{ doLogin }}">Create admin account</button>
+      </div>
+    </sc-if>
+    <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="field"><label>Password</label><input class="input" type="password" placeholder="••••••••••••"></div>
+        <button class="btn btn-primary btn-block" onClick="{{ doLogin }}">Unlock</button>
+      </div>
+    </sc-if>
+    <div style="font-family:ui-monospace,monospace;font-size:10px;color:var(--color-neutral-600)">single admin &middot; argon2 &middot; sealed session cookie</div>
+  </div>
+</div>
+</sc-if>
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;height:100vh;overflow:hidden">
+  <sc-if value="{{ isSidebar }}" hint-placeholder-val="{{ true }}">
+  <aside style="width:192px;flex:none;border-right:2px solid var(--color-divider);display:flex;flex-direction:column;background:var(--color-bg)">
+    <div style="padding:14px 14px 12px;border-bottom:2px solid var(--color-divider)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:11px;height:11px;background:var(--color-accent)"></div>
+        <div style="font-family:var(--font-heading);font-weight:800;font-size:16px">FETCHARR</div>
+      </div>
+      <div style="font-size:10px;color:var(--color-neutral-600);margin-top:2px">yt-dlp media downloader</div>
+    </div>
+    <nav style="display:flex;flex-direction:column;padding:10px 0;flex:1">
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="6">
+        <div onClick="{{ item.go }}" style="{{ item.style }}">
+          <span>{{ item.label }}</span>
+          <sc-if value="{{ item.badge }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:600;background:var(--color-accent);color:var(--color-bg);padding:1px 6px">{{ item.badge }}</span></sc-if>
+        </div>
+      </sc-for>
+    </nav>
+    <div style="padding:12px 14px;border-top:1px solid var(--color-divider);display:flex;flex-direction:column;gap:6px">
+      <div style="font-family:ui-monospace,monospace;font-size:10px;color:var(--color-neutral-600)">fetcharr v0.1.0<br>yt-dlp 2026.08.12</div>
+      <span class="tag tag-accent" style="align-self:flex-start;font-size:10px">new image available</span>
+      <a onClick="{{ signOut }}" style="font-size:12px;cursor:pointer;text-decoration:none;color:var(--color-neutral-700)">Sign out</a>
+    </div>
+  </aside>
+  </sc-if>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <sc-if value="{{ isTopbar }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:20px;padding:0 20px;height:46px;border-bottom:2px solid var(--color-divider);flex:none">
+        <div style="display:flex;align-items:center;gap:8px;margin-right:8px">
+          <div style="width:11px;height:11px;background:var(--color-accent)"></div>
+          <div style="font-family:var(--font-heading);font-weight:800;font-size:16px">FETCHARR</div>
+        </div>
+        <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="6">
+          <div onClick="{{ item.go }}" style="{{ item.topStyle }}">{{ item.label }}<sc-if value="{{ item.badge }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;font-weight:600;background:var(--color-accent);color:var(--color-bg);padding:0 5px;margin-left:6px">{{ item.badge }}</span></sc-if></div>
+        </sc-for>
+        <div style="margin-left:auto;font-family:ui-monospace,monospace;font-size:10px;color:var(--color-neutral-600)">v0.1.0</div>
+      </div>
+    </sc-if>
+    <header style="position:relative;display:flex;align-items:center;gap:12px;padding:0 20px;height:52px;border-bottom:2px solid var(--color-divider);flex:none;background:var(--color-bg)">
+      <div style="display:flex;flex:1;max-width:680px;gap:0">
+        <input class="input" style="flex:1;font-family:ui-monospace,monospace;font-size:13px" placeholder="Paste any URL — video, playlist, channel — and hit Enter" value="{{ url }}" onChange="{{ onUrlChange }}" onKeyDown="{{ onUrlKey }}">
+        <button class="btn btn-primary" style="flex:none" onClick="{{ openProbe }}">Fetch</button>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+        <a href="#" style="font-size:12px;color:var(--color-neutral-700);text-decoration:none">/api/docs</a>
+        <button class="btn btn-secondary btn-icon" onClick="{{ toggleNotifs }}" style="position:relative" aria-label="Notifications">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+          <sc-if value="{{ unread }}" hint-placeholder-val="{{ true }}"><span style="position:absolute;top:-5px;right:-5px;background:var(--color-accent);color:var(--color-bg);font-size:9px;font-weight:800;min-width:14px;height:14px;display:grid;place-items:center;padding:0 3px">{{ unread }}</span></sc-if>
+        </button>
+      </div>
+      <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;top:52px;right:16px;width:360px;background:var(--color-surface);border:1px solid var(--color-divider);box-shadow:var(--shadow-lg);z-index:60">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:2px solid var(--color-divider)">
+            <span style="font-family:var(--font-heading);font-weight:800;font-size:13px">NOTIFICATIONS</span>
+            <button class="btn btn-ghost" style="font-size:12px" onClick="{{ markAllRead }}">Mark all read</button>
+          </div>
+          <sc-for list="{{ notifs }}" as="n" hint-placeholder-count="4">
+            <div style="display:flex;gap:10px;padding:10px 12px;border-bottom:1px solid var(--color-divider);font-size:12px">
+              <div style="{{ n.dotStyle }}"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600">{{ n.title }}</div>
+                <div style="color:var(--color-neutral-700)">{{ n.body }}</div>
+              </div>
+              <div style="font-size:10px;color:var(--color-neutral-600);flex:none">{{ n.time }}</div>
+            </div>
+          </sc-for>
+          <div style="padding:8px 12px;font-size:11px;color:var(--color-neutral-600)">External: ntfy &middot; Gotify &middot; Discord webhook — configure in Settings</div>
+        </div>
+      </sc-if>
+    </header>
+    <main style="flex:1;overflow:auto;padding:20px 24px 40px">
+
+      <sc-if value="{{ isQueue }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px">
+          <h4 style="margin:0">Queue</h4>
+          <span style="font-size:12px;color:var(--color-neutral-700)">{{ queueSummary }}</span>
+          <div style="margin-left:auto;display:flex;gap:8px">
+            <button class="btn btn-secondary" style="font-size:12px;padding:5px 12px" onClick="{{ togglePauseAll }}">{{ pauseAllLabel }}</button>
+            <button class="btn btn-secondary" style="font-size:12px;padding:5px 12px" onClick="{{ clearFinished }}">Clear finished</button>
+          </div>
+        </div>
+        <sc-if value="{{ queueIsTable }}" hint-placeholder-val="{{ true }}">
+          <div style="border-top:2px solid var(--color-divider)">
+            <div style="display:grid;grid-template-columns:16px minmax(200px,1fr) 64px minmax(110px,150px) 74px 60px 64px 82px 100px;gap:10px;align-items:center;padding:8px 10px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);border-bottom:2px solid var(--color-divider)">
+              <span></span><span>Title</span><span>Format</span><span>Progress</span><span>Speed</span><span>ETA</span><span>Size</span><span>Priority</span><span>Actions</span>
+            </div>
+            <sc-for list="{{ jobs }}" as="job" hint-placeholder-count="5">
+              <div>
+                <div onClick="{{ job.toggle }}" style="display:grid;grid-template-columns:16px minmax(200px,1fr) 64px minmax(110px,150px) 74px 60px 64px 82px 100px;gap:10px;align-items:center;padding:9px 10px;border-bottom:1px solid var(--color-divider);cursor:pointer;font-size:13px" style-hover="background:color-mix(in srgb, var(--color-text) 4%, transparent)">
+                  <div style="{{ job.dotStyle }}"></div>
+                  <div style="min-width:0">
+                    <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ job.title }}</div>
+                    <div style="font-size:11px;color:var(--color-neutral-700)">{{ job.channel }}</div>
+                  </div>
+                  <span style="font-family:ui-monospace,monospace;font-size:11px">{{ job.fmt }}</span>
+                  <div>
+                    <sc-if value="{{ job.showBar }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <div style="flex:1;height:4px;background:var(--color-neutral-300)"><div style="height:4px;background:var(--color-accent);width:{{ job.pctW }}"></div></div>
+                        <span style="font-family:ui-monospace,monospace;font-size:11px;width:38px;text-align:right">{{ job.pctLabel }}</span>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ job.statusLabel }}" hint-placeholder-val="{{ false }}"><span style="{{ job.statusStyle }}">{{ job.statusLabel }}</span></sc-if>
+                  </div>
+                  <span style="font-family:ui-monospace,monospace;font-size:11px">{{ job.speed }}</span>
+                  <span style="font-family:ui-monospace,monospace;font-size:11px">{{ job.eta }}</span>
+                  <span style="font-family:ui-monospace,monospace;font-size:11px">{{ job.size }}</span>
+                  <span style="{{ job.prioStyle }}">{{ job.prio }}</span>
+                  <div style="display:flex;gap:2px">
+                    <sc-if value="{{ job.canPause }}" hint-placeholder-val="{{ true }}">
+                      <button class="btn btn-secondary btn-icon" style="width:28px;height:28px" onClick="{{ job.pauseResume }}" title="{{ job.pauseTitle }}">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                      </button>
+                    </sc-if>
+                    <sc-if value="{{ job.canResume }}" hint-placeholder-val="{{ false }}">
+                      <button class="btn btn-secondary btn-icon" style="width:28px;height:28px" onClick="{{ job.pauseResume }}" title="Resume">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+                      </button>
+                    </sc-if>
+                    <sc-if value="{{ job.canRetry }}" hint-placeholder-val="{{ false }}">
+                      <button class="btn btn-secondary btn-icon" style="width:28px;height:28px" onClick="{{ job.retry }}" title="Retry">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                      </button>
+                    </sc-if>
+                    <button class="btn btn-secondary btn-icon" style="width:28px;height:28px" onClick="{{ job.cancel }}" title="Cancel / remove">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                  </div>
+                </div>
+                <sc-if value="{{ job.isExpanded }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:12px 14px 14px 36px;border-bottom:1px solid var(--color-divider);background:var(--color-surface);display:flex;flex-direction:column;gap:10px">
+                    <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700)">Generated args</div>
+                    <div style="font-family:ui-monospace,monospace;font-size:11px;background:var(--color-neutral-100);border:1px solid var(--color-divider);padding:8px 10px;overflow-x:auto;white-space:nowrap">{{ job.args }}</div>
+                    <sc-if value="{{ job.stderr }}" hint-placeholder-val="{{ false }}">
+                      <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-700)">stderr &middot; attempt {{ job.attemptLabel }}</div>
+                      <div style="font-family:ui-monospace,monospace;font-size:11px;background:var(--color-neutral-900);color:var(--color-accent-300);padding:8px 10px;overflow-x:auto;white-space:pre-wrap">{{ job.stderr }}</div>
+                    </sc-if>
+                    <div style="display:flex;gap:12px;font-size:11px;color:var(--color-neutral-700);font-family:ui-monospace,monospace">
+                      <span>uid {{ job.uid }}</span><span>created {{ job.created }}</span><span>&rarr; /downloads/video/{{ job.channel }}/</span>
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ queueIsCards }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+            <sc-for list="{{ jobs }}" as="job" hint-placeholder-count="5">
+              <div class="card elev-sm" style="gap:8px;cursor:pointer" onClick="{{ job.toggle }}">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="{{ job.dotStyle }}"></div>
+                  <span style="{{ job.prioStyle }}">{{ job.prio }}</span>
+                  <span style="margin-left:auto;font-family:ui-monospace,monospace;font-size:11px">{{ job.fmt }}</span>
+                </div>
+                <div style="font-weight:600;font-size:13px;line-height:1.3">{{ job.title }}</div>
+                <div style="font-size:11px;color:var(--color-neutral-700)">{{ job.channel }}</div>
+                <sc-if value="{{ job.showBar }}" hint-placeholder-val="{{ true }}">
+                  <div style="height:4px;background:var(--color-neutral-300)"><div style="height:4px;background:var(--color-accent);width:{{ job.pctW }}"></div></div>
+                  <div style="display:flex;justify-content:space-between;font-family:ui-monospace,monospace;font-size:11px;color:var(--color-neutral-700)"><span>{{ job.pctLabel }} &middot; {{ job.speed }}</span><span>ETA {{ job.eta }}</span></div>
+                </sc-if>
+                <sc-if value="{{ job.statusLabel }}" hint-placeholder-val="{{ false }}"><span style="{{ job.statusStyle }}">{{ job.statusLabel }}</span></sc-if>
+                <sc-if value="{{ job.isExpanded }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-family:ui-monospace,monospace;font-size:10px;background:var(--color-neutral-100);border:1px solid var(--color-divider);padding:6px 8px;overflow-x:auto;white-space:nowrap">{{ job.args }}</div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <div style="margin-top:14px;font-size:11px;color:var(--color-neutral-600)">Priority order: manual &gt; bulk &gt; subscription &middot; failed jobs retry with exponential backoff &middot; click a row for args &amp; stderr</div>
+      </sc-if>
+
+      <sc-if value="{{ isLibrary }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <h4 style="margin:0">Library</h4>
+          <span style="font-size:12px;color:var(--color-neutral-700)">{{ libSummary }}</span>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+            <input class="input" style="width:200px;min-height:32px;font-size:12px" placeholder="Search title or channel" value="{{ libQuery }}" onChange="{{ onLibQuery }}">
+            <div style="display:flex;border:1px solid var(--color-divider)">
+              <sc-for list="{{ libFilters }}" as="f" hint-placeholder-count="4"><button onClick="{{ f.go }}" style="{{ f.style }}">{{ f.label }}</button></sc-for>
+            </div>
+            <div style="display:flex;border:1px solid var(--color-divider)">
+              <sc-for list="{{ libSorts }}" as="f" hint-placeholder-count="3"><button onClick="{{ f.go }}" style="{{ f.style }}">{{ f.label }}</button></sc-for>
+            </div>
+            <div style="display:flex;border:1px solid var(--color-divider)">
+              <button onClick="{{ setGridView }}" style="{{ gridBtnStyle }}" title="Grid">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              </button>
+              <button onClick="{{ setListView }}" style="{{ listBtnStyle }}" title="List">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <sc-if value="{{ libIsGrid }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px">
+            <sc-for list="{{ libItems }}" as="it" hint-placeholder-count="8">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="position:relative;aspect-ratio:16/9;background:repeating-linear-gradient(45deg,var(--color-neutral-200),var(--color-neutral-200) 6px,var(--color-neutral-300) 6px,var(--color-neutral-300) 12px);display:grid;place-items:center">
+                  <span style="font-family:ui-monospace,monospace;font-size:10px;color:var(--color-neutral-600)">{{ it.thumbLabel }}</span>
+                  <span style="position:absolute;bottom:4px;right:4px;background:var(--color-neutral-900);color:var(--color-neutral-100);font-family:ui-monospace,monospace;font-size:10px;padding:1px 5px">{{ it.dur }}</span>
+                  <sc-if value="{{ it.fav }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:4px;left:4px;color:var(--color-accent)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span></sc-if>
+                </div>
+                <div style="font-weight:600;font-size:12.5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ it.title }}</div>
+                <div style="font-size:11px;color:var(--color-neutral-700)">{{ it.channel }} &middot; {{ it.date }} &middot; {{ it.size }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ libIsList }}" hint-placeholder-val="{{ false }}">
+          <div style="border-top:2px solid var(--color-divider)">
+            <sc-for list="{{ libItems }}" as="it" hint-placeholder-count="8">
+              <div style="display:grid;grid-template-columns:76px 1fr 90px 70px 80px 90px 40px;gap:12px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--color-divider);font-size:13px" style-hover="background:color-mix(in srgb, var(--color-text) 4%, transparent)">
+                <div style="aspect-ratio:16/9;background:repeating-linear-gradient(45deg,var(--color-neutral-200),var(--color-neutral-200) 5px,var(--color-neutral-300) 5px,var(--color-neutral-300) 10px)"></div>
+                <div style="min-width:0">
+                  <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.title }}</div>
+                  <div style="font-size:11px;color:var(--color-neutral-700)">{{ it.channel }}</div>
+                </div>
+                <span style="{{ it.typeStyle }}">{{ it.type }}</span>
+                <span style="font-family:ui-monospace,monospace;font-size:11px">{{ it.dur }}</span>
+                <span style="font-family:ui-monospace,monospace;font-size:11px">{{ it.size }}</span>
+                <span style="font-size:11px;color:var(--color-neutral-700)">{{ it.date }}</span>
+                <sc-if value="{{ it.fav }}" hint-placeholder-val="{{ false }}"><span style="color:var(--color-accent)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span></sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <div style="margin-top:14px;font-size:11px;color:var(--color-neutral-600)">/downloads/video/&lt;channel&gt;/ &middot; NFO + thumbnails written for Jellyfin/Plex &middot; select multiple for ZIP download</div>
+      </sc-if>
+
+      <sc-if value="{{ isSubs }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px">
+          <h4 style="margin:0">Subscriptions</h4>
+          <span style="font-size:12px;color:var(--color-neutral-700)">5 subscriptions &middot; next check in 12 min</span>
+          <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px">Add subscription</button>
+        </div>
+        <div style="border-top:2px solid var(--color-divider)">
+          <div style="display:grid;grid-template-columns:1fr 84px 110px 96px 100px 90px 150px;gap:10px;padding:8px 10px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);border-bottom:2px solid var(--color-divider)">
+            <span>Name</span><span>Type</span><span>Schedule</span><span>Quality</span><span>Last check</span><span>Archive</span><span>Actions</span>
+          </div>
+          <sc-for list="{{ subs }}" as="s" hint-placeholder-count="5">
+            <div style="display:grid;grid-template-columns:1fr 84px 110px 96px 100px 90px 150px;gap:10px;align-items:center;padding:9px 10px;border-bottom:1px solid var(--color-divider);font-size:13px" style-hover="background:color-mix(in srgb, var(--color-text) 4%, transparent)">
+              <div style="min-width:0">
+                <div style="font-weight:600;display:flex;align-items:center;gap:8px">{{ s.name }}<sc-if value="{{ s.paused }}" hint-placeholder-val="{{ false }}"><span class="tag tag-neutral" style="font-size:9px">paused</span></sc-if><sc-if value="{{ s.rss }}" hint-placeholder-val="{{ false }}"><span class="tag tag-outline" style="font-size:9px">RSS</span></sc-if></div>
+                <div style="font-size:11px;color:var(--color-neutral-700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.url }}</div>
+              </div>
+              <span style="font-size:11px">{{ s.type }}</span>
+              <span style="font-family:ui-monospace,monospace;font-size:11px">{{ s.cron }}</span>
+              <span style="font-family:ui-monospace,monospace;font-size:11px">{{ s.quality }}</span>
+              <span style="font-size:11px;color:var(--color-neutral-700)">{{ s.lastCheck }}</span>
+              <span style="font-family:ui-monospace,monospace;font-size:11px">{{ s.archived }}</span>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px" onClick="{{ s.checkNow }}">{{ s.checkLabel }}</button>
+                <button class="btn btn-ghost" style="font-size:11px">Edit</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:14px;font-size:11px;color:var(--color-neutral-600)">Per-sub yt-dlp archive kept in DB &middot; export as archive.txt &middot; audio subs expose a token-protected podcast RSS feed</div>
+      </sc-if>
+
+      <sc-if value="{{ isTasks }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px">
+          <h4 style="margin:0">Tasks &amp; maintenance</h4>
+          <span style="font-size:12px;color:var(--color-neutral-700)">two-phase: run collects &rarr; confirm executes destructive step</span>
+          <button class="btn btn-secondary" style="margin-left:auto;font-size:12px;padding:5px 12px">Reset stuck tasks</button>
+        </div>
+        <div style="border-top:2px solid var(--color-divider)">
+          <div style="display:grid;grid-template-columns:1fr 120px 120px 130px 130px 210px;gap:10px;padding:8px 10px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);border-bottom:2px solid var(--color-divider)">
+            <span>Task</span><span>Last run</span><span>Last confirmed</span><span>Schedule</span><span>Status</span><span>Actions</span>
+          </div>
+          <sc-for list="{{ tasks }}" as="t" hint-placeholder-count="8">
+            <div style="display:grid;grid-template-columns:1fr 120px 120px 130px 130px 210px;gap:10px;align-items:center;padding:9px 10px;border-bottom:1px solid var(--color-divider);font-size:13px" style-hover="background:color-mix(in srgb, var(--color-text) 4%, transparent)">
+              <div>
+                <div style="font-weight:600">{{ t.name }}</div>
+                <div style="font-size:11px;color:var(--color-neutral-700)">{{ t.desc }}</div>
+              </div>
+              <span style="font-size:11px;color:var(--color-neutral-700)">{{ t.lastRun }}</span>
+              <span style="font-size:11px;color:var(--color-neutral-700)">{{ t.lastConfirmed }}</span>
+              <span style="font-family:ui-monospace,monospace;font-size:11px">{{ t.schedule }}</span>
+              <span style="{{ t.statusStyle }}">{{ t.status }}</span>
+              <div style="display:flex;gap:6px;align-items:center">
+                <sc-if value="{{ t.confirming }}" hint-placeholder-val="{{ false }}">
+                  <button class="btn btn-primary" style="font-size:11px;padding:4px 10px" onClick="{{ t.confirm }}">{{ t.confirmLabel }}</button>
+                </sc-if>
+                <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px" onClick="{{ t.run }}">Run now</button>
+                <button class="btn btn-ghost" style="font-size:11px">Options</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:14px;font-size:11px;color:var(--color-neutral-600)">Task history in task_runs &middot; scheduler is TZ-aware (croner) &middot; a running task is skipped on re-trigger &middot; DB restore &amp; auto-backup before rebuild</div>
+      </sc-if>
+
+      <sc-if value="{{ isStorage }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px">
+          <h4 style="margin:0">Storage</h4>
+          <div style="margin-left:auto;display:flex;border:1px solid var(--color-divider)">
+            <sc-for list="{{ storageTabs }}" as="f" hint-placeholder-count="3"><button onClick="{{ f.go }}" style="{{ f.style }}">{{ f.label }}</button></sc-for>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:2px solid var(--color-divider);border-width:2px 0;margin-bottom:20px">
+          <div style="padding:14px 12px;border-right:1px solid var(--color-divider)"><div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700)">Used</div><div style="font-family:var(--font-heading);font-weight:800;font-size:26px">1.38 TB</div></div>
+          <div style="padding:14px 12px;border-right:1px solid var(--color-divider)"><div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700)">Free</div><div style="font-family:var(--font-heading);font-weight:800;font-size:26px">2.62 TB</div></div>
+          <div style="padding:14px 12px;border-right:1px solid var(--color-divider)"><div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700)">Files</div><div style="font-family:var(--font-heading);font-weight:800;font-size:26px">2,431</div></div>
+          <div style="padding:14px 12px"><div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700)">Bytes today</div><div style="font-family:var(--font-heading);font-weight:800;font-size:26px">14.2 GB</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0;border-top:2px solid var(--color-divider)">
+          <sc-for list="{{ storageRows }}" as="r" hint-placeholder-count="6">
+            <div style="display:grid;grid-template-columns:220px 1fr 90px 70px;gap:14px;align-items:center;padding:10px;border-bottom:1px solid var(--color-divider);font-size:13px">
+              <span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</span>
+              <div style="height:14px;background:var(--color-neutral-200)"><div style="height:14px;background:var(--color-accent);width:{{ r.w }}"></div></div>
+              <span style="font-family:ui-monospace,monospace;font-size:11px;text-align:right">{{ r.size }}</span>
+              <span style="font-size:11px;color:var(--color-neutral-700);text-align:right">{{ r.files }} files</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:14px;font-size:11px;color:var(--color-neutral-600)">Also exported at /metrics (Prometheus): queue length, success/error counters, bytes downloaded, per-subscription storage</div>
+      </sc-if>
+
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px">
+          <h4 style="margin:0">Settings</h4>
+          <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px">Save changes</button>
+        </div>
+        <div style="display:flex;gap:24px;align-items:flex-start">
+          <div style="width:160px;flex:none;display:flex;flex-direction:column;border-top:2px solid var(--color-divider)">
+            <sc-for list="{{ settingsTabs }}" as="f" hint-placeholder-count="5"><button onClick="{{ f.go }}" style="{{ f.style }}">{{ f.label }}</button></sc-for>
+          </div>
+          <div style="flex:1;max-width:640px;display:flex;flex-direction:column;gap:14px">
+            <sc-if value="{{ tabDownloader }}" hint-placeholder-val="{{ true }}">
+              <div class="field"><label>Default output template</label><input class="input" style="font-family:ui-monospace,monospace;font-size:12px" value="/downloads/%(uploader)s/%(title)s [%(id)s].%(ext)s"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                <div class="field"><label>Max parallel downloads</label><input class="input" value="3"></div>
+                <div class="field"><label>Rate limit</label><input class="input" value="10M"></div>
+              </div>
+              <div class="field"><label>Default format</label>
+                <div style="display:flex;border:1px solid var(--color-divider);align-self:flex-start;width:fit-content">
+                  <span style="padding:6px 12px;font-size:12px;background:var(--color-accent);color:var(--color-bg);font-weight:600">best</span><span style="padding:6px 12px;font-size:12px;border-left:1px solid var(--color-divider)">1080p</span><span style="padding:6px 12px;font-size:12px;border-left:1px solid var(--color-divider)">720p</span><span style="padding:6px 12px;font-size:12px;border-left:1px solid var(--color-divider)">audio</span>
+                </div>
+              </div>
+              <div class="field"><label>SponsorBlock default</label>
+                <div style="display:flex;border:1px solid var(--color-divider);width:fit-content">
+                  <span style="padding:6px 12px;font-size:12px;background:var(--color-accent);color:var(--color-bg);font-weight:600">remove</span><span style="padding:6px 12px;font-size:12px;border-left:1px solid var(--color-divider)">mark</span><span style="padding:6px 12px;font-size:12px;border-left:1px solid var(--color-divider)">off</span>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ tabExtra }}" hint-placeholder-val="{{ false }}">
+              <sc-for list="{{ extraToggles }}" as="x" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--color-divider)">
+                  <div><div style="font-weight:600;font-size:13px">{{ x.name }}</div><div style="font-size:11px;color:var(--color-neutral-700)">{{ x.desc }}</div></div>
+                  <span style="{{ x.style }}">{{ x.state }}</span>
+                </div>
+              </sc-for>
+            </sc-if>
+            <sc-if value="{{ tabApi }}" hint-placeholder-val="{{ false }}">
+              <div class="field"><label>API key</label>
+                <div style="display:flex;gap:8px">
+                  <input class="input" style="font-family:ui-monospace,monospace;font-size:12px" value="fk_9m2XvTqLp8wN4rKcJd6HbYs3" readonly>
+                  <button class="btn btn-secondary" style="flex:none;font-size:12px">Regenerate</button>
+                </div>
+              </div>
+              <div style="font-family:ui-monospace,monospace;font-size:12px;display:flex;flex-direction:column;gap:6px;background:var(--color-surface);border:1px solid var(--color-divider);padding:12px">
+                <span>GET /api/health &mdash; container healthcheck</span>
+                <span>GET /metrics &mdash; Prometheus</span>
+                <span>GET /api/docs &mdash; Swagger UI (OpenAPI from Zod)</span>
+                <span>?apiKey=&hellip; or X-Api-Key header</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{ tabSubs }}" hint-placeholder-val="{{ false }}">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                <div class="field"><label>Default check interval (cron)</label><input class="input" style="font-family:ui-monospace,monospace;font-size:12px" value="0 */6 * * *"></div>
+                <div class="field"><label>Default max quality</label><input class="input" value="1080p"></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--color-divider)">
+                <div><div style="font-weight:600;font-size:13px">Redownload fresh uploads</div><div style="font-size:11px;color:var(--color-neutral-700)">Re-fetch videos re-uploaded within 48 h in better quality</div></div>
+                <span class="tag tag-neutral">off</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--color-divider)">
+                <div><div style="font-weight:600;font-size:13px">Record livestreams</div><div style="font-size:11px;color:var(--color-neutral-700)">--live-from-start for subs with livestream capture enabled</div></div>
+                <span class="tag tag-accent">on</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{ tabAdvanced }}" hint-placeholder-val="{{ false }}">
+              <div class="field"><label>Global custom yt-dlp args</label><textarea class="input" style="font-family:ui-monospace,monospace;font-size:12px">--embed-metadata --embed-chapters</textarea></div>
+              <div class="field"><label>Custom user agent</label><input class="input" style="font-family:ui-monospace,monospace;font-size:12px" placeholder="(default)"></div>
+              <div class="field"><label>Cookies</label>
+                <div style="border:1px dashed var(--color-divider);padding:18px;text-align:center;font-size:12px;color:var(--color-neutral-700)">Drop cookies.txt here or <a href="#">browse</a> &mdash; stored in /config, never in the image</div>
+              </div>
+              <div class="field"><label>Log level</label>
+                <div style="display:flex;border:1px solid var(--color-divider);width:fit-content">
+                  <span style="padding:6px 12px;font-size:12px;border-right:1px solid var(--color-divider)">debug</span><span style="padding:6px 12px;font-size:12px;background:var(--color-accent);color:var(--color-bg);font-weight:600">info</span><span style="padding:6px 12px;font-size:12px;border-left:1px solid var(--color-divider)">warn</span>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isNotifications }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px">
+          <h4 style="margin:0">Notifications</h4>
+          <button class="btn btn-secondary" style="margin-left:auto;font-size:12px;padding:5px 12px" onClick="{{ markAllRead }}">Mark all read</button>
+        </div>
+        <div style="border-top:2px solid var(--color-divider);max-width:720px">
+          <sc-for list="{{ notifs }}" as="n" hint-placeholder-count="5">
+            <div style="display:flex;gap:12px;padding:12px 10px;border-bottom:1px solid var(--color-divider);font-size:13px">
+              <div style="{{ n.dotStyle }}"></div>
+              <div style="flex:1"><div style="font-weight:600">{{ n.title }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ n.body }}</div></div>
+              <div style="font-size:11px;color:var(--color-neutral-600);flex:none">{{ n.time }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+    </main>
+  </div>
+</div>
+<sc-if value="{{ probeOpen }}" hint-placeholder-val="{{ false }}">
+  <div class="dialog-backdrop" style="z-index:100" onClick="{{ closeProbe }}">
+    <div class="dialog" style="width:min(600px,100%);max-width:min(600px,100%);overflow:hidden;gap:14px" onClick="{{ stop }}">
+      <div style="display:flex;align-items:baseline;gap:10px">
+        <span class="dialog-title" style="font-size:18px">Add download</span>
+        <span class="tag tag-accent" style="font-size:10px">video detected</span>
+      </div>
+      <div style="display:flex;gap:12px">
+        <div style="width:150px;flex:none;aspect-ratio:16/9;background:repeating-linear-gradient(45deg,var(--color-neutral-200),var(--color-neutral-200) 6px,var(--color-neutral-300) 6px,var(--color-neutral-300) 12px);display:grid;place-items:center"><span style="font-family:ui-monospace,monospace;font-size:10px;color:var(--color-neutral-600)">thumbnail</span></div>
+        <div style="min-width:0">
+          <div style="font-weight:600;font-size:14px;line-height:1.3">The Fermi Paradox &mdash; Where Are All The Aliens?</div>
+          <div style="font-size:12px;color:var(--color-neutral-700);margin-top:2px">Kurzgesagt &ndash; In a Nutshell &middot; 12:14 &middot; uploaded 2026-08-14</div>
+          <div style="font-family:ui-monospace,monospace;font-size:11px;color:var(--color-neutral-600);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ probeUrl }}</div>
+        </div>
+      </div>
+      <div class="field"><label>Format</label>
+        <div style="display:flex;border:1px solid var(--color-divider);width:fit-content">
+          <sc-for list="{{ fmtOpts }}" as="f" hint-placeholder-count="4"><button onClick="{{ f.go }}" style="{{ f.style }}">{{ f.label }}</button></sc-for>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--color-divider)">
+        <button onClick="{{ toggleAdv }}" style="display:flex;align-items:center;gap:6px;width:100%;background:none;border:0;padding:10px 0;font:inherit;font-size:12px;font-weight:600;cursor:pointer;color:var(--color-text)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="{{ advChevron }}"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          Advanced &mdash; args, output, crop, SponsorBlock, folder
+        </button>
+        <sc-if value="{{ adv }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:6px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="field"><label>Custom args</label><input class="input" style="font-family:ui-monospace,monospace;font-size:12px" placeholder="--embed-chapters"></div>
+              <div class="field"><label>Output template</label><input class="input" style="font-family:ui-monospace,monospace;font-size:12px" placeholder="(global default)"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+              <div class="field"><label>Crop start</label><input class="input" placeholder="00:00:00"></div>
+              <div class="field"><label>Crop end</label><input class="input" placeholder="(end)"></div>
+              <div class="field"><label>Target folder</label><input class="input" style="font-size:12px" value="/downloads/video"></div>
+            </div>
+            <div class="field"><label>SponsorBlock</label>
+              <div style="display:flex;border:1px solid var(--color-divider);width:fit-content">
+                <sc-for list="{{ sbOpts }}" as="f" hint-placeholder-count="3"><button onClick="{{ f.go }}" style="{{ f.style }}">{{ f.label }}</button></sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+      <div style="min-width:0;max-width:100%;overflow:hidden">
+        <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:5px">Args preview</div>
+        <div style="font-family:ui-monospace,monospace;font-size:11px;background:var(--color-neutral-100);border:1px solid var(--color-divider);padding:8px 10px;overflow-x:auto;white-space:nowrap">{{ argsPreview }}</div>
+      </div>
+      <div class="dialog-actions" style="margin-top:0">
+        <button class="btn btn-secondary" onClick="{{ closeProbe }}">Cancel</button>
+        <button class="btn btn-primary" onClick="{{ addToQueue }}">Add to queue</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;navStyle&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;sidebar&quot;, &quot;topbar&quot;], &quot;default&quot;: &quot;sidebar&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Layout variations&quot;},
+  &quot;queueLayout&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;table&quot;, &quot;cards&quot;], &quot;default&quot;: &quot;table&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Layout variations&quot;},
+  &quot;liveSimulation&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Demo&quot;}
+}">
+class Component extends DCLogic {
+  state = {
+    screen: 'queue', authed: true, authMode: 'login',
+    url: '', probeOpen: false, probeUrl: '', adv: false, fmt: 'best', sb: 'remove',
+    expanded: null, libView: 'grid', libFilter: 'All', libSort: 'Date', libQuery: '',
+    notifOpen: false, settingsTab: 'Downloader', storageBy: 'By channel', queuePaused: false,
+    jobs: [
+      {uid:'a3f8c2', title:'The Big Misconception About Electricity', channel:'Veritasium', type:'video', fmt:'1080p', status:'running', pct:62.4, speed:'8.4 MB/s', eta:'00:41', size:'312 MB', prio:'manual', attempts:1, max:3, created:'10:32'},
+      {uid:'b71e09', title:'Optimistic Nihilism', channel:'Kurzgesagt', type:'audio', fmt:'m4a', status:'running', pct:31.0, speed:'2.1 MB/s', eta:'01:12', size:'54 MB', prio:'subscription', attempts:1, max:3, created:'10:35'},
+      {uid:'c9d240', title:'But what is a neural network?', channel:'3Blue1Brown', type:'video', fmt:'best', status:'queued', pct:0, speed:'', eta:'', size:'', prio:'bulk', attempts:0, max:3, created:'10:36'},
+      {uid:'d05b77', title:'The Art of Code', channel:'NDC Conferences', type:'video', fmt:'720p', status:'queued', pct:0, speed:'', eta:'', size:'', prio:'bulk', attempts:0, max:3, created:'10:36'},
+      {uid:'e442f1', title:'Inside a $200M Data Center', channel:'TechTours', type:'video', fmt:'best', status:'errored', pct:0, speed:'', eta:'', size:'', prio:'manual', attempts:2, max:3, created:'09:58', stderr:"ERROR: [youtube] xK9dPq2: Sign in to confirm you're not a bot. Use --cookies or --cookies-from-browser to pass authentication.\\nHint: a fresh yt-dlp release may fix extraction — run the 'Update yt-dlp' task."},
+      {uid:'f83a1c', title:'A Brief History of Timekeeping', channel:'Veritasium', type:'video', fmt:'1080p', status:'finished', pct:100, speed:'', eta:'', size:'481 MB', prio:'manual', attempts:1, max:3, created:'08:12'}
+    ],
+    notifs: [
+      {id:1, title:'Download finished', body:"'A Brief History of Timekeeping' — 481 MB", time:'2 min', read:false},
+      {id:2, title:'Subscription found 2 new videos', body:'Kurzgesagt – In a Nutshell', time:'22 min', read:false},
+      {id:3, title:'yt-dlp updated', body:'2026.08.05 → 2026.08.12 (auto-confirm, nightly)', time:'4 h', read:false},
+      {id:4, title:'Task needs confirmation', body:"'Missing files check' found 3 orphaned entries", time:'1 d', read:true},
+      {id:5, title:'Download failed', body:"'Inside a $200M Data Center' — attempt 2/3, retrying with backoff", time:'1 d', read:true}
+    ]
+  };
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      if ((this.props.liveSimulation ?? true) === false) return;
+      this.setState(s => ({ jobs: s.jobs.map(j => {
+        if (j.status !== 'running') return j;
+        let pct = j.pct + Math.random() * 1.6;
+        if (pct >= 100) return { ...j, pct: 100, status: 'finished', speed: '', eta: '' };
+        const speeds = ['8.4 MB/s','7.9 MB/s','9.1 MB/s','8.7 MB/s','2.1 MB/s','2.4 MB/s'];
+        return { ...j, pct, speed: speeds[Math.floor(Math.random()*speeds.length)], eta: this.fmtEta(pct) };
+      })}));
+    }, 1100);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  fmtEta(pct) { const s = Math.max(2, Math.round((100 - pct) * 0.7)); return '0' + Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
+  segStyle(on, first) {
+    return { padding:'6px 12px', fontSize:'12px', fontFamily:'inherit', cursor:'pointer', border:'0',
+      borderLeft: first ? '0' : '1px solid var(--color-divider)',
+      background: on ? 'var(--color-accent)' : 'transparent',
+      color: on ? 'var(--color-bg)' : 'var(--color-text)', fontWeight: on ? 600 : 400 };
+  }
+  seg(list, cur, set) { return list.map((label, i) => ({ label, style: this.segStyle(label === cur, i === 0), go: () => set(label) })); }
+  buildArgs(fmt, sb, url) {
+    const a = ['yt-dlp'];
+    if (fmt === 'audio') a.push('-x --audio-format m4a --embed-thumbnail --add-metadata');
+    else if (fmt === 'best') a.push('-f "bv*+ba/b"');
+    else a.push('-f "bv*[height<=' + parseInt(fmt) + ']+ba/b"');
+    if (sb !== 'off') a.push('--sponsorblock-' + sb + ' default');
+    a.push('-o "/downloads/video/%(uploader)s/%(title)s [%(id)s].%(ext)s" --write-info-json --write-thumbnail');
+    a.push(url || '<url>');
+    return a.join(' ');
+  }
+  renderVals() {
+    const s = this.state;
+    const navStyle = this.props.navStyle ?? 'sidebar';
+    const go = (screen) => this.setState({ screen, notifOpen: false });
+    const active = s.jobs.filter(j => j.status === 'running' || j.status === 'queued').length;
+    const statusMeta = {
+      running:  { dot: 'var(--color-accent)', pulse: true },
+      queued:   { dot: 'var(--color-neutral-400)', label: 'queued', bg: 'var(--color-neutral-200)', fg: 'var(--color-neutral-800)' },
+      paused:   { dot: 'var(--color-neutral-500)', label: 'paused', bg: 'var(--color-neutral-200)', fg: 'var(--color-neutral-800)' },
+      errored:  { dot: 'var(--color-accent-700)', label: 'errored', bg: 'var(--color-accent-100)', fg: 'var(--color-accent-800)' },
+      finished: { dot: 'var(--color-neutral-300)', label: 'finished', bg: 'var(--color-neutral-100)', fg: 'var(--color-neutral-700)' },
+      cancelled:{ dot: 'var(--color-neutral-300)', label: 'cancelled', bg: 'var(--color-neutral-100)', fg: 'var(--color-neutral-700)' }
+    };
+    const prioColors = { manual: ['var(--color-accent-100)','var(--color-accent-800)'], bulk: ['var(--color-neutral-200)','var(--color-neutral-800)'], subscription: ['var(--color-neutral-100)','var(--color-neutral-700)'] };
+    const jobs = s.jobs.map(j => {
+      const m = statusMeta[j.status];
+      const pc = prioColors[j.prio];
+      return { ...j,
+        pctW: Math.round(j.pct) + '%', pctLabel: Math.round(j.pct) + '%',
+        speed: j.speed || '—', eta: j.eta || '—', size: j.size || '—',
+        showBar: j.status === 'running' || j.status === 'paused',
+        statusLabel: (j.status !== 'running' && j.status !== 'paused') ? m.label : null,
+        statusStyle: { fontSize: '10px', fontWeight: 600, padding: '2px 8px', background: m.bg, color: m.fg, textTransform: 'uppercase', letterSpacing: '0.05em' },
+        dotStyle: { width: '8px', height: '8px', background: m.dot, animation: m.pulse ? 'fa-pulse 1.4s ease-in-out infinite' : 'none' },
+        prioStyle: { fontSize: '10px', padding: '2px 8px', background: pc[0], color: pc[1], letterSpacing: '0.02em', justifySelf: 'start' },
+        isExpanded: s.expanded === j.uid,
+        args: this.buildArgs(j.fmt === 'm4a' ? 'audio' : j.fmt, 'remove', 'https://youtube.com/watch?v=' + j.uid),
+        attemptLabel: j.attempts + '/' + j.max,
+        canPause: j.status === 'running', canResume: j.status === 'paused' || j.status === 'queued' && false, canRetry: j.status === 'errored',
+        pauseTitle: 'Pause',
+        toggle: () => this.setState({ expanded: s.expanded === j.uid ? null : j.uid }),
+        pauseResume: (e) => { e.stopPropagation(); this.setState(st => ({ jobs: st.jobs.map(x => x.uid === j.uid ? { ...x, status: x.status === 'running' ? 'paused' : 'running' } : x) })); },
+        retry: (e) => { e.stopPropagation(); this.setState(st => ({ jobs: st.jobs.map(x => x.uid === j.uid ? { ...x, status: 'queued', attempts: x.attempts + 1 } : x) })); },
+        cancel: (e) => { e.stopPropagation(); this.setState(st => ({ jobs: st.jobs.filter(x => x.uid !== j.uid) })); }
+      };
+    });
+    jobs.forEach(j => { if (j.status === 'paused') j.canResume = true; });
+    const libRaw = [
+      {title:'The Big Misconception About Electricity', channel:'Veritasium', dur:'14:48', size:'312 MB', date:'Aug 18', type:'video', fav:true, views:3, ts:8, sz:312},
+      {title:'The Egg – A Short Story', channel:'Kurzgesagt', dur:'7:55', size:'148 MB', date:'Aug 17', type:'video', fav:false, ts:7, sz:148},
+      {title:'But what is a neural network?', channel:'3Blue1Brown', dur:'19:13', size:'402 MB', date:'Aug 16', type:'video', fav:true, ts:6, sz:402},
+      {title:'EP 148: Dubsnatch', channel:'Darknet Diaries', dur:'51:22', size:'47 MB', date:'Aug 15', type:'audio', fav:false, ts:5, sz:47},
+      {title:'The Giant Archive Hidden Under the British Countryside', channel:'Tom Scott', dur:'6:01', size:'121 MB', date:'Aug 12', type:'video', fav:false, ts:4, sz:121},
+      {title:'Lec 1: Introduction to Algorithms', channel:'MIT OpenCourseWare', dur:'50:32', size:'890 MB', date:'Aug 10', type:'video', fav:false, ts:3, sz:890},
+      {title:'Optimistic Nihilism', channel:'Kurzgesagt', dur:'6:09', size:'9 MB', date:'Aug 08', type:'audio', fav:false, ts:2, sz:9},
+      {title:'A Brief History of Timekeeping', channel:'Veritasium', dur:'21:33', size:'481 MB', date:'Aug 02', type:'video', fav:true, ts:1, sz:481}
+    ];
+    const q = s.libQuery.toLowerCase();
+    let libItems = libRaw.filter(it =>
+      (s.libFilter === 'All' || (s.libFilter === 'Video' && it.type === 'video') || (s.libFilter === 'Audio' && it.type === 'audio') || (s.libFilter === 'Favs' && it.fav)) &&
+      (!q || it.title.toLowerCase().includes(q) || it.channel.toLowerCase().includes(q)));
+    if (s.libSort === 'Title') libItems = [...libItems].sort((a,b) => a.title.localeCompare(b.title));
+    else if (s.libSort === 'Size') libItems = [...libItems].sort((a,b) => b.sz - a.sz);
+    else libItems = [...libItems].sort((a,b) => b.ts - a.ts);
+    libItems = libItems.map(it => ({ ...it, thumbLabel: it.type === 'audio' ? 'cover art' : 'video thumb',
+      typeStyle: { fontSize: '10px', padding: '2px 8px', justifySelf: 'start', background: it.type === 'audio' ? 'var(--color-accent-100)' : 'var(--color-neutral-200)', color: it.type === 'audio' ? 'var(--color-accent-800)' : 'var(--color-neutral-800)' } }));
+    const subs = [
+      {name:'Kurzgesagt – In a Nutshell', url:'youtube.com/@kurzgesagt', type:'channel', cron:'0 */6 * * *', quality:'1080p video', lastCheck:'22 min ago', archived:'412', paused:false, rss:false},
+      {name:'Darknet Diaries', url:'youtube.com/@JackRhysider/podcasts', type:'playlist', cron:'0 2 * * *', quality:'m4a audio', lastCheck:'8 h ago', archived:'148', paused:false, rss:true},
+      {name:'3Blue1Brown', url:'youtube.com/@3blue1brown', type:'channel', cron:'0 3 * * 0', quality:'best video', lastCheck:'6 d ago', archived:'187', paused:true, rss:false},
+      {name:'MIT 6.006 Spring 2020', url:'youtube.com/playlist?list=PLUl4u3c…', type:'playlist', cron:'0 2 * * *', quality:'720p video', lastCheck:'8 h ago', archived:'32 / 32', paused:false, rss:false},
+      {name:'NASA Live Streams', url:'nasa.gov/live (generic)', type:'generic', cron:'0 * * * *', quality:'best +live', lastCheck:'42 min ago', archived:'56', paused:false, rss:false}
+    ].map(x => ({ ...x, checkLabel: 'Check now', checkNow: () => {} }));
+    const tasks = [
+      {name:'Backup DB', desc:'VACUUM INTO /config/backups/ + settings & cookies', lastRun:'today 03:00', lastConfirmed:'—', schedule:'daily 03:00', status:'ok'},
+      {name:'Missing files check', desc:'find DB entries whose file is gone', lastRun:'yesterday', lastConfirmed:'3 d ago', schedule:'weekly Sun', status:'confirming', confirming:true, confirmLabel:'Confirm: delete 3'},
+      {name:'Import missing DB records', desc:'scan /downloads for unknown files, import with sidecar/ffprobe', lastRun:'5 d ago', lastConfirmed:'—', schedule:'manual', status:'idle'},
+      {name:'Find duplicate files', desc:'duplicates by URL/hash', lastRun:'2 w ago', lastConfirmed:'2 w ago', schedule:'manual', status:'auto_confirm'},
+      {name:'Update yt-dlp', desc:'version check → binary to /config/bin', lastRun:'today 04:12', lastConfirmed:'today 04:12', schedule:'nightly 04:00', status:'auto_confirm'},
+      {name:'Delete old files', desc:'older than threshold; favorites & subs excluded', lastRun:'never', lastConfirmed:'—', schedule:'off', status:'idle'},
+      {name:'Rebuild database', desc:'rebuild DB from filesystem (auto-backup first)', lastRun:'never', lastConfirmed:'—', schedule:'manual', status:'idle'},
+      {name:'Import from YoutubeDL-Material', desc:'analyze old instance: local_db.json, archives, media', lastRun:'3 mo ago', lastConfirmed:'3 mo ago', schedule:'manual', status:'idle'}
+    ].map(t => {
+      const st = { ok:['var(--color-neutral-100)','var(--color-neutral-700)'], idle:['var(--color-neutral-100)','var(--color-neutral-700)'], confirming:['var(--color-accent-100)','var(--color-accent-800)'], auto_confirm:['var(--color-neutral-200)','var(--color-neutral-800)'] }[t.status];
+      return { ...t, statusStyle: { fontSize:'10px', fontWeight:600, padding:'2px 8px', background:st[0], color:st[1], textTransform:'uppercase', letterSpacing:'0.05em', justifySelf:'start' }, run: () => {}, confirm: () => {} };
+    });
+    const storageData = {
+      'By channel': [ ['Veritasium','84.2 GB',241,100],['MIT OpenCourseWare','61.7 GB',96,73],['Kurzgesagt','38.1 GB',412,45],['3Blue1Brown','22.4 GB',187,27],['NASA Live','19.8 GB',56,24],['Darknet Diaries','4.2 GB',148,5] ],
+      'By subscription': [ ['Kurzgesagt – In a Nutshell','38.1 GB',412,100],['MIT 6.006 Spring 2020','29.3 GB',32,77],['3Blue1Brown','22.4 GB',187,59],['NASA Live Streams','19.8 GB',56,52],['Darknet Diaries','4.2 GB',148,11] ],
+      'By type': [ ['Video','1.21 TB',1876,100],['Audio','168 GB',492,14],['Livestream recordings','42 GB',63,3] ]
+    };
+    const storageRows = storageData[s.storageBy].map(r => ({ name:r[0], size:r[1], files:r[2], w:r[3] + '%' }));
+    const notifs = s.notifs.map(n => ({ ...n, dotStyle: { width:'8px', height:'8px', marginTop:'5px', flex:'none', background: n.read ? 'var(--color-neutral-300)' : 'var(--color-accent)' } }));
+    const unreadCount = s.notifs.filter(n => !n.read).length;
+    const navDefs = [ ['Queue','queue', active], ['Library','library'], ['Subscriptions','subs'], ['Tasks','tasks'], ['Storage','storage'], ['Settings','settings'] ];
+    const navItems = navDefs.map(([label, key, badge]) => {
+      const on = s.screen === key;
+      return { label, badge: badge || null, go: () => go(key),
+        style: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 14px', fontSize:'13.5px', cursor:'pointer', fontWeight: on ? 600 : 400, color: on ? 'var(--color-accent)' : 'var(--color-text)', borderLeft: on ? '3px solid var(--color-accent)' : '3px solid transparent', background: on ? 'color-mix(in srgb, var(--color-accent) 6%, transparent)' : 'transparent' },
+        topStyle: { display:'flex', alignItems:'center', fontSize:'13px', cursor:'pointer', fontWeight: on ? 600 : 400, color: on ? 'var(--color-accent)' : 'var(--color-text)', borderBottom: on ? '2px solid var(--color-accent)' : '2px solid transparent', alignSelf:'stretch', paddingTop:'2px' } };
+    });
+    const tabBtn = (label, cur, set) => ({ label, go: () => set(label), style: { textAlign:'left', padding:'9px 12px', fontSize:'13px', fontFamily:'inherit', cursor:'pointer', border:'0', borderBottom:'1px solid var(--color-divider)', background: label === cur ? 'var(--color-surface)' : 'transparent', fontWeight: label === cur ? 600 : 400, color: label === cur ? 'var(--color-accent)' : 'var(--color-text)' } });
+    return {
+      isAuth: !s.authed, isApp: s.authed,
+      isSetup: s.authMode === 'setup', isLogin: s.authMode === 'login',
+      setAuthSetup: () => this.setState({ authMode: 'setup' }), setAuthLogin: () => this.setState({ authMode: 'login' }),
+      authSetupStyle: { ...this.segStyle(s.authMode === 'setup', true), flex: 1 }, authLoginStyle: { ...this.segStyle(s.authMode === 'login', false), flex: 1 },
+      doLogin: () => this.setState({ authed: true, screen: 'queue' }), signOut: () => this.setState({ authed: false }),
+      isSidebar: navStyle === 'sidebar', isTopbar: navStyle === 'topbar',
+      navItems,
+      isQueue: s.screen === 'queue', isLibrary: s.screen === 'library', isSubs: s.screen === 'subs', isTasks: s.screen === 'tasks',
+      isStorage: s.screen === 'storage', isSettings: s.screen === 'settings', isNotifications: s.screen === 'notifications',
+      url: s.url, onUrlChange: (e) => this.setState({ url: e.target.value }),
+      onUrlKey: (e) => { if (e.key === 'Enter') this.setState({ probeOpen: true, probeUrl: s.url || 'https://www.youtube.com/watch?v=sNhhvQGsMEc', notifOpen: false }); },
+      openProbe: () => this.setState({ probeOpen: true, probeUrl: s.url || 'https://www.youtube.com/watch?v=sNhhvQGsMEc', notifOpen: false }),
+      closeProbe: () => this.setState({ probeOpen: false, adv: false }),
+      probeOpen: s.probeOpen, probeUrl: s.probeUrl, stop: (e) => e.stopPropagation(),
+      adv: s.adv, toggleAdv: () => this.setState({ adv: !s.adv }),
+      advChevron: { transform: s.adv ? 'rotate(180deg)' : 'none', transition: 'transform .15s' },
+      fmtOpts: this.seg(['best', '1080p', '720p', 'audio'], s.fmt, (v) => this.setState({ fmt: v })),
+      sbOpts: this.seg(['remove', 'mark', 'off'], s.sb, (v) => this.setState({ sb: v })),
+      argsPreview: this.buildArgs(s.fmt, s.sb, s.probeUrl),
+      addToQueue: () => this.setState(st => ({ probeOpen: false, adv: false, url: '', screen: 'queue',
+        jobs: [{ uid: 'g' + Math.random().toString(36).slice(2, 7), title: 'The Fermi Paradox — Where Are All The Aliens?', channel: 'Kurzgesagt', type: s.fmt === 'audio' ? 'audio' : 'video', fmt: s.fmt === 'audio' ? 'm4a' : s.fmt, status: 'queued', pct: 0, speed: '', eta: '', size: '', prio: 'manual', attempts: 0, max: 3, created: 'now' }, ...st.jobs] })),
+      jobs, queueIsTable: (this.props.queueLayout ?? 'table') === 'table', queueIsCards: (this.props.queueLayout ?? 'table') === 'cards',
+      queueSummary: active + ' active · ' + s.jobs.filter(j => j.status === 'errored').length + ' errored · ' + s.jobs.filter(j => j.status === 'finished').length + ' finished',
+      pauseAllLabel: s.queuePaused ? 'Resume all' : 'Pause all',
+      togglePauseAll: () => this.setState(st => ({ queuePaused: !st.queuePaused, jobs: st.jobs.map(j => (j.status === 'running' && !st.queuePaused) ? { ...j, status: 'paused' } : (j.status === 'paused' && st.queuePaused) ? { ...j, status: 'running' } : j) })),
+      clearFinished: () => this.setState(st => ({ jobs: st.jobs.filter(j => j.status !== 'finished') })),
+      libItems, libIsGrid: s.libView === 'grid', libIsList: s.libView === 'list',
+      libSummary: libItems.length + ' of 2,431 items · 1.38 TB',
+      libQuery: s.libQuery, onLibQuery: (e) => this.setState({ libQuery: e.target.value }),
+      libFilters: this.seg(['All', 'Video', 'Audio', 'Favs'], s.libFilter, (v) => this.setState({ libFilter: v })),
+      libSorts: this.seg(['Date', 'Title', 'Size'], s.libSort, (v) => this.setState({ libSort: v })),
+      setGridView: () => this.setState({ libView: 'grid' }), setListView: () => this.setState({ libView: 'list' }),
+      gridBtnStyle: { ...this.segStyle(s.libView === 'grid', true), padding: '6px 9px', display: 'flex', alignItems: 'center' },
+      listBtnStyle: { ...this.segStyle(s.libView === 'list', false), padding: '6px 9px', display: 'flex', alignItems: 'center' },
+      subs, tasks, storageRows,
+      storageTabs: this.seg(['By channel', 'By subscription', 'By type'], s.storageBy, (v) => this.setState({ storageBy: v })),
+      settingsTabs: ['Downloader', 'Extra', 'API', 'Subscriptions', 'Advanced'].map(l => tabBtn(l, s.settingsTab, (v) => this.setState({ settingsTab: v }))),
+      tabDownloader: s.settingsTab === 'Downloader', tabExtra: s.settingsTab === 'Extra', tabApi: s.settingsTab === 'API', tabSubs: s.settingsTab === 'Subscriptions', tabAdvanced: s.settingsTab === 'Advanced',
+      extraToggles: [
+        { name: 'Write NFO files', desc: 'Jellyfin/Kodi schema next to each media file', state: 'on' },
+        { name: 'Write thumbnails', desc: 'poster.jpg per file and per channel folder', state: 'on' },
+        { name: 'Sidecar metadata JSON', desc: 'full yt-dlp info dump per file', state: 'on' },
+        { name: 'Podcast RSS feeds', desc: 'per audio subscription, API-key token in URL', state: 'on' },
+        { name: 'View counter & resume positions', desc: 'track plays in the built-in player', state: 'off' }
+      ].map(x => ({ ...x, style: { fontSize: '10px', fontWeight: 600, padding: '2px 10px', textTransform: 'uppercase', letterSpacing: '0.05em', background: x.state === 'on' ? 'var(--color-accent-100)' : 'var(--color-neutral-200)', color: x.state === 'on' ? 'var(--color-accent-800)' : 'var(--color-neutral-700)' } })),
+      notifs, unread: unreadCount || null,
+      notifOpen: s.notifOpen, toggleNotifs: () => this.setState({ notifOpen: !s.notifOpen }),
+      markAllRead: () => this.setState(st => ({ notifs: st.notifs.map(n => ({ ...n, read: true })) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

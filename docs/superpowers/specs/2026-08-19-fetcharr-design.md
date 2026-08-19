@@ -18,7 +18,7 @@ Selbst-gehosteter Medien-Downloader auf yt-dlp-Basis — Nachfolger von YoutubeD
 
 | Schicht | Technologie |
 |---|---|
-| Frontend | Nuxt 4 (Vue 3, TypeScript), Nuxt UI v4, Dark Mode, PWA (@vite-pwa/nuxt) |
+| Frontend | Nuxt 4 (Vue 3, TypeScript), eigene Komponenten nach dem „Modernist"-Designsystem (siehe UI-Design), PWA (@vite-pwa/nuxt) |
 | API | Nitro/H3-Routes (`/api/*`), Zod-Validierung, OpenAPI-Generierung + Swagger-UI unter `/api/docs` |
 | Worker | Eigener Node-22-Prozess (TypeScript), Queue-Consumer + Scheduler (croner) |
 | Prozess-Supervision | s6-overlay: startet Nuxt + Worker, Signal-Handling, Auto-Restart |
@@ -28,6 +28,30 @@ Selbst-gehosteter Medien-Downloader auf yt-dlp-Basis — Nachfolger von YoutubeD
 | Binaries | yt-dlp: Auto-Update zur Laufzeit nach `/config/bin`; ffmpeg/ffprobe + deno im Image |
 | Tests | Vitest (Worker-Logik, API-Routes), yt-dlp gemockt |
 | i18n | @nuxtjs/i18n, Start: Deutsch + Englisch |
+
+## UI-Design
+
+Referenz-Mockup in Claude Design erstellt: Projekt `c6d71759-a5f7-4d5e-b69e-96a742bb69a0` (`Fetcharr.dc.html`). Lokale Kopie: `docs/design/Fetcharr.dc.html` + `docs/design/styles.css` + `docs/design/design-system.md`. Das Mockup ist die verbindliche Referenz für Layout, Zustände und Wording der abgedeckten Screens.
+
+**Designsystem „Modernist":** flat, architektonisch, Archivo (Heading 800/Body 400), **0px Radius**, starke 2px-Divider, Ground #f3f2f2, ein Akzent #ec3013, OKLCH-Ramps 100–900, Lucide-Icons, Monospace für technische Werte (Args, Cron, IDs, Größen). Buttons/Labels flush left. Tokens/Klassen aus `styles.css` übernehmen (btn/tag/field/input/seg/card/table/dialog) — kein UI-Framework-Standardlook; statt Nuxt UI werden eigene schlanke Komponenten auf diesen Klassen gebaut (Headless-Verhalten wo nötig via reka-ui).
+
+**Screens im Mockup:**
+- **Auth:** First-run-Setup (Passwort min. 12 Zeichen, wiederholen) / Login — Umschalter, Karte zentriert
+- **App-Rahmen:** Sidebar (Default; Topbar als Variante) mit Nav Queue (Badge = aktive Jobs)/Library/Subscriptions/Tasks/Storage/Settings, Footer mit App- und yt-dlp-Version, „new image available"-Tag, Sign out. Header: URL-Eingabe + „Fetch", Link `/api/docs`, Notification-Glocke mit Ungelesen-Zähler und Dropdown
+- **Add-Download-Dialog (Probe):** Thumbnail + Metadaten, Format-Segmente (best/1080p/720p/audio), aufklappbares Advanced (Custom Args, Output-Template, Crop Start/Ende, Zielordner, SponsorBlock remove/mark/off), **Args-Preview live**, „Add to queue"
+- **Queue:** Tabelle (Default; Karten-Variante), Spalten Status-Punkt/Titel+Kanal/Format/Progress+%/Speed/ETA/Size/Priority (manual/bulk/subscription)/Aktionen (Pause/Resume/Retry/Cancel); Zeile expandierbar → generierte Args, stderr mit Versuchszähler, uid/Erstellzeit/Zielpfad; Kopf: Zusammenfassung, Pause all, Clear finished
+- **Library:** Grid (Default) / Liste, Suche, Filter All/Video/Audio/Favs, Sortierung Date/Title/Size, Favoriten-Stern, Dauer-Badge auf Thumbnail
+- **Subscriptions:** Tabelle Name (+paused/RSS-Tags)/Typ (channel/playlist/generic)/Cron/Qualität/Letzter Check/Archiv-Zähler/Aktionen (Check now, Edit), „Add subscription"
+- **Tasks:** wie spezifiziert, inkl. Confirm-Button mit Zähler („Confirm: delete 3"), Status-Tags (ok/idle/confirming/auto_confirm), „Reset stuck tasks"
+- **Storage:** Stat-Kacheln Used/Free/Files/Bytes today; Balken-Liste mit Tabs By channel/By subscription/By type (inkl. „Livestream recordings")
+- **Settings:** Tabs Downloader (Output-Template, Max parallel, Rate limit, Default-Format, SponsorBlock-Default), Extra (Toggles: NFO, Thumbnails, Sidecar-JSON, Podcast-RSS, View counter & resume positions), API (API-Key + Regenerate, Endpoint-Übersicht), Subscriptions (Default-Cron, Default-Qualität, Redownload fresh uploads, Record livestreams), Advanced (globale Args, Custom User-Agent, Cookies-Dropzone, Log level)
+- **Notifications:** eigene Seite + Glocken-Dropdown, Mark all read
+
+**Aus dem Mockup in die Spec übernommene Festlegungen:** Passwort-Mindestlänge 12; Default-Output-Template `/downloads/%(uploader)s/%(title)s [%(id)s].%(ext)s`; Queue-Badge in der Nav; Fehler-Hinweis bei bekannten yt-dlp-Fehlerklassen direkt im stderr-Panel („run the Update yt-dlp task"); View-Counter/Resume-Positionen als abschaltbares Feature; „new image available" in der Sidebar.
+
+**Im Mockup nicht enthalten (gilt trotzdem, Design folgt dem System):** Player-Ansicht, Playlists & Kategorien, Archiv-Verwaltung, Logs-Viewer, Bulk-Import-Dialog, Notification-Kanal-Einstellungen (ntfy/Gotify/Discord/Webhook — im Mockup nur als Fußnote referenziert), Subscription-Edit-Dialog, PWA-Share-Target-Flow.
+
+**Abweichung vom Mockup:** Das Mockup ist Light-only. Umsetzung liefert zusätzlich eine Dark-Variante über die Token-Ebene (gleiche Ramps, invertierter Ground), Umschaltung per prefers-color-scheme + manueller Toggle.
 
 ### Prozessmodell & IPC
 
