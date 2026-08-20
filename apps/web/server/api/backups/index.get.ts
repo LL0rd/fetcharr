@@ -42,5 +42,9 @@ export async function listBackups(): Promise<BackupEntry[]> {
     }
   }
 
-  return entries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+  // Zwei Backups derselben Sekunde sortiert die mtime nicht — der Dateiname
+  // trägt den ISO-Zeitstempel und entscheidet dann.
+  return entries.sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.file.localeCompare(a.file),
+  )
 }

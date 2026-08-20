@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -29,9 +29,15 @@ afterEach(() => {
   process.env.CONFIG_DIR = envBackup.config
 })
 
-function seedBackup(name: string, content = 'backup'): void {
+/**
+ * `mtime` wird explizit gesetzt: sonst tragen zwei in derselben Millisekunde
+ * geschriebene Dateien dieselbe Zeit und die erwartete Reihenfolge wäre Zufall.
+ */
+function seedBackup(name: string, content = 'backup', mtime?: Date): void {
   mkdirSync(join(configDir, 'backups'), { recursive: true })
-  writeFileSync(join(configDir, 'backups', name), content)
+  const path = join(configDir, 'backups', name)
+  writeFileSync(path, content)
+  if (mtime) utimesSync(path, mtime, mtime)
 }
 
 describe('GET /api/backups', () => {
@@ -42,8 +48,8 @@ describe('GET /api/backups', () => {
   })
 
   it('lists .db files newest first and ignores everything else', async () => {
-    seedBackup('fetcharr-2026-08-01.db')
-    seedBackup('fetcharr-2026-08-18.db', 'newer backup')
+    seedBackup('fetcharr-2026-08-01.db', 'backup', new Date('2026-08-01T03:00:00Z'))
+    seedBackup('fetcharr-2026-08-18.db', 'newer backup', new Date('2026-08-18T03:00:00Z'))
     seedBackup('notes.txt')
 
     const result = await handlers.list({})
@@ -52,6 +58,18 @@ describe('GET /api/backups', () => {
       'fetcharr-2026-08-01.db',
     ])
     expect(result.backups[0].sizeBytes).toBe('newer backup'.length)
+  })
+
+  it('falls back to the file name when two backups share their mtime', async () => {
+    const sameMoment = new Date('2026-08-18T03:00:00Z')
+    seedBackup('fetcharr-2026-08-18T03-00-00.db', 'backup', sameMoment)
+    seedBackup('fetcharr-2026-08-18T04-00-00.db', 'backup', sameMoment)
+
+    const result = await handlers.list({})
+    expect(result.backups.map((entry: any) => entry.file)).toEqual([
+      'fetcharr-2026-08-18T04-00-00.db',
+      'fetcharr-2026-08-18T03-00-00.db',
+    ])
   })
 })
 
