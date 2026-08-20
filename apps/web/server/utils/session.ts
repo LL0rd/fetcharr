@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { useSession, type H3Event } from 'h3'
+import { getRequestProtocol, useSession, type H3Event } from 'h3'
 
 export const SESSION_NAME = 'fetcharr-session'
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30
@@ -58,7 +58,15 @@ async function session(event: H3Event) {
     name: SESSION_NAME,
     password: await getSessionSecret(),
     maxAge: SESSION_MAX_AGE,
-    cookie: { httpOnly: true, sameSite: 'lax', path: '/' },
+    cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      // Browsers drop a Secure cookie on a plain HTTP origin, and a self-hosted
+      // instance usually runs as http://<host>:<port> in the LAN. Behind a TLS
+      // proxy the forwarded protocol brings the flag back.
+      secure: getRequestProtocol(event, { xForwardedProto: true }) === 'https',
+    },
   })
 }
 

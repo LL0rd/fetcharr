@@ -110,6 +110,18 @@ describe('auth login', () => {
     await expect(status.json()).resolves.toMatchObject({ hasAdmin: true, authenticated: true })
   })
 
+  it('leaves the cookie unsecured on plain http, so a LAN instance can log in', async () => {
+    const response = await post('/api/auth/login', { password: 'correct horse battery' })
+    expect(response.headers.get('set-cookie')).not.toMatch(/Secure/i)
+  })
+
+  it('marks the cookie secure behind an https proxy', async () => {
+    const response = await post('/api/auth/login', { password: 'correct horse battery' }, {
+      headers: { 'x-forwarded-proto': 'https' },
+    })
+    expect(response.headers.get('set-cookie')).toMatch(/Secure/i)
+  })
+
   it('logout clears the session cookie', async () => {
     const login = await post('/api/auth/login', { password: 'correct horse battery' })
     const cookie = sessionCookie(login)
