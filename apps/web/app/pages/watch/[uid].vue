@@ -8,8 +8,14 @@ const uid = computed(() => String(route.params.uid))
 const file = ref<LibraryFile | null>(null)
 const loadError = ref('')
 const media = ref<HTMLMediaElement | null>(null)
+const subtitleText = ref('')
 
 const streamUrl = computed(() => `/api/stream/${uid.value}`)
+const isSubtitle = computed(() => file.value?.type === 'subtitle')
+
+/** Sehr lange Spuren würden die Seite lahmlegen — der Rest bleibt im Download. */
+const SUBTITLE_PREVIEW_CHARS = 200_000
+const subtitleTruncated = computed(() => subtitleText.value.length >= SUBTITLE_PREVIEW_CHARS)
 
 const metaLine = computed(() => {
   if (!file.value) return ''
@@ -27,11 +33,31 @@ onMounted(async () => {
   try {
     const result = await $fetch<{ file: LibraryFile }>(`/api/files/${uid.value}`)
     file.value = result.file
+    if (isSubtitle.value) await loadSubtitle()
   }
   catch {
     loadError.value = 'This file is not in the library (any more).'
   }
 })
+
+/**
+ * Untertitel haben keinen Player: sie werden als Text gezeigt und zählen dabei
+ * als ein Aufruf, damit die Mediathek sie genauso wie ein Video mitzählt.
+ */
+async function loadSubtitle(): Promise<void> {
+  try {
+    const text = await $fetch<string>(streamUrl.value, { responseType: 'text' })
+    subtitleText.value = String(text).slice(0, SUBTITLE_PREVIEW_CHARS)
+  }
+  catch {
+    subtitleText.value = ''
+  }
+  counted = true
+  void $fetch(`/api/files/${uid.value}/view`, {
+    method: 'POST',
+    body: { positionSec: null, countView: true },
+  }).catch(() => {})
+}
 
 /** Die zuletzt gemeldete Position — spart identische Aufrufe beim Pausieren. */
 let reported = -1
@@ -124,7 +150,16 @@ async function toggleFavorite(): Promise<void> {
     <p v-if="loadError" class="watch-error">{{ loadError }}</p>
 
     <template v-else-if="file">
-      <div class="stage" :class="{ 'stage-audio': file.type === 'audio' }">
+      <div v-if="isSubtitle" class="stage stage-text">
+        <pre class="subs-text">{{ subtitleText || 'This subtitle file is empty or could not be read.' }}</pre>
+      </div>
+
+      <p v-if="subtitleTruncated" class="subs-note">
+        Only the first {{ SUBTITLE_PREVIEW_CHARS.toLocaleString('en-US') }} characters are shown —
+        use Download for the complete file.
+      </p>
+
+      <div v-if="!isSubtitle" class="stage" :class="{ 'stage-audio': file.type === 'audio' }">
         <video
           v-if="file.type === 'video'"
           ref="media"
@@ -159,14 +194,19 @@ async function toggleFavorite(): Promise<void> {
           <a class="info-url" :href="file.url" target="_blank" rel="noreferrer">{{ file.url }}</a>
         </div>
         <div class="info-actions">
-          <span class="tag" :class="file.type === 'audio' ? 'tag-accent' : 'tag-neutral'">{{ file.type }}</span>
+          <span class="tag" :class="file.type === 'video' ? 'tag-neutral' : 'tag-accent'">{{ file.type }}</span>
           <LibraryStar :active="file.favorite" :size="18" @toggle="toggleFavorite" />
           <a class="btn btn-secondary watch-btn" :href="streamUrl" download>Download</a>
         </div>
       </div>
 
       <div class="watch-foot">
-        Streamed with range requests from /api/stream · playback position is stored per file
+        <template v-if="isSubtitle">
+          Subtitle track without any video or audio · served from /api/stream
+        </template>
+        <template v-else>
+          Streamed with range requests from /api/stream · playback position is stored per file
+        </template>
       </div>
     </template>
 
@@ -187,6 +227,24 @@ async function toggleFavorite(): Promise<void> {
   max-height: 70vh;
 }
 .stage-audio { padding: 24px; background: var(--color-surface); }
+.stage-text {
+  place-items: stretch;
+  padding: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+}
+.subs-text {
+  margin: 0;
+  padding: 14px 16px;
+  max-height: 70vh;
+  overflow: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.subs-note { margin: 0; font-size: 11px; color: var(--color-neutral-700); }
 .player { width: 100%; max-height: 70vh; display: block; }
 .player-audio { max-width: 560px; }
 

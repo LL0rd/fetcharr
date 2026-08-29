@@ -3,7 +3,13 @@ import { createInterface } from 'node:readline'
 import { dirname, join, posix } from 'node:path'
 import type { Readable } from 'node:stream'
 
-import { buildArgs, type ArgsPaths, type GlobalSettings, type JobOptions } from '@fetcharr/shared'
+import {
+  buildArgs,
+  type ArgsPaths,
+  type GlobalSettings,
+  type JobOptions,
+  type MediaKind,
+} from '@fetcharr/shared'
 import { execa, type ResultPromise } from 'execa'
 import treeKill from 'tree-kill'
 
@@ -13,7 +19,7 @@ import { ytdlpPath } from './ytdlp.ts'
 export interface RunnerJob {
   uid: string
   url: string
-  type: 'video' | 'audio'
+  type: MediaKind
   options: JobOptions
 }
 
@@ -56,6 +62,23 @@ export interface DownloadHandle {
 const THUMBNAIL_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp']
 
 /**
+ * Was yt-dlp als Untertitel ablegt — `--convert-subs` liefert eines der ersten
+ * drei, die übrigen kommen durch, wenn die Konvertierung nicht greift.
+ */
+const SUBTITLE_EXTENSIONS = [
+  '.srt',
+  '.vtt',
+  '.ass',
+  '.ssa',
+  '.lrc',
+  '.ttml',
+  '.srv1',
+  '.srv2',
+  '.srv3',
+  '.json3',
+]
+
+/**
  * Startet yt-dlp für einen Job. Geladen wird nach `<DOWNLOADS_DIR>/.tmp/<uid>/`;
  * erst nach Exit 0 wandert der komplette Baum ins Ziel — halbe Dateien tauchen
  * damit nie in der Mediathek auf.
@@ -85,7 +108,7 @@ export function runDownload(options: RunDownloadOptions): DownloadHandle {
     if (!consumeProgressLine(line, options.onProgress)) stderrChunks.push(line)
   })
 
-  const result = finalize(child, tmpRoot, downloadsDir, stderrChunks, () => aborted)
+  const result = finalize(child, tmpRoot, downloadsDir, job.type, stderrChunks, () => aborted)
 
   return {
     get pid() {
@@ -103,6 +126,7 @@ async function finalize(
   child: ResultPromise<{ buffer: false; reject: false }>,
   tmpRoot: string,
   downloadsDir: string,
+  type: MediaKind,
   stderrChunks: string[],
   wasAborted: () => boolean,
 ): Promise<DownloadResult> {
@@ -115,7 +139,7 @@ async function finalize(
       return { status: 'failed', stderr, exitCode: outcome.exitCode ?? null }
     }
 
-    return await collectAndMove(tmpRoot, downloadsDir)
+    return await collectAndMove(tmpRoot, downloadsDir, type)
   } catch (error) {
     if (wasAborted()) return { status: 'cancelled', stderr: stderrChunks.join('\n') }
     const message = error instanceof Error ? error.message : String(error)
@@ -126,14 +150,23 @@ async function finalize(
   }
 }
 
-/** Verschiebt den Staging-Baum 1:1 ins Ziel und benennt die dabei entstandenen Rollen. */
-async function collectAndMove(tmpRoot: string, downloadsDir: string): Promise<DownloadResult> {
-  const relatives = await walk(tmpRoot)
+/**
+ * Verschiebt den Staging-Baum 1:1 ins Ziel und benennt die dabei entstandenen Rollen.
+ * Bei einem Untertitel-Job gilt die Untertitelspur als Hauptdatei — mehrere Sprachen
+ * landen alle im Ziel, in der Mediathek steht die alphabetisch erste.
+ */
+async function collectAndMove(
+  tmpRoot: string,
+  downloadsDir: string,
+  type: MediaKind,
+): Promise<DownloadResult> {
+  // Sortiert, damit bei mehreren Kandidaten immer dieselbe Datei die Hauptrolle bekommt.
+  const relatives = (await walk(tmpRoot)).sort()
   if (relatives.length === 0) {
     return { status: 'failed', stderr: 'yt-dlp produced no output files', exitCode: 0 }
   }
 
-  let mediaPath: string | null = null
+  const candidates: string[] = []
   let thumbnailPath: string | null = null
   let info: Record<string, unknown> | null = null
 
@@ -146,11 +179,13 @@ async function collectAndMove(tmpRoot: string, downloadsDir: string): Promise<Do
     if (relative.endsWith('.info.json')) info = await readInfoFile(target)
     else if (THUMBNAIL_EXTENSIONS.some((ext) => relative.toLowerCase().endsWith(ext))) {
       thumbnailPath ??= target
-    } else mediaPath ??= target
+    } else candidates.push(target)
   }
 
+  const mediaPath = pickMedia(candidates, type)
   if (!mediaPath) {
-    return { status: 'failed', stderr: 'yt-dlp produced no media file', exitCode: 0 }
+    const missing = type === 'subtitle' ? 'subtitle' : 'media'
+    return { status: 'failed', stderr: `yt-dlp produced no ${missing} file`, exitCode: 0 }
   }
 
   return {
@@ -160,6 +195,21 @@ async function collectAndMove(tmpRoot: string, downloadsDir: string): Promise<Do
     info,
     sizeBytes: await fileSize(mediaPath),
   }
+}
+
+/**
+ * Untertitel-Jobs brauchen wirklich eine Untertitelspur: bliebe hier irgendeine
+ * andere Datei übrig, stünde in der Mediathek etwas Unabspielbares statt eines
+ * ehrlichen Fehlers.
+ */
+function pickMedia(candidates: string[], type: MediaKind): string | null {
+  if (type !== 'subtitle') return candidates[0] ?? null
+  return candidates.find((path) => isSubtitle(path)) ?? null
+}
+
+function isSubtitle(path: string): boolean {
+  const lower = path.toLowerCase()
+  return SUBTITLE_EXTENSIONS.some((extension) => lower.endsWith(extension))
 }
 
 function readLines(stream: Readable | null | undefined, onLine: (line: string) => void): void {

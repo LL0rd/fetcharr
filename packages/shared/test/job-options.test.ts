@@ -45,4 +45,35 @@ describe('JobOptionsSchema', () => {
     expect(parsed.format).toBe('audio')
     expect(parsed.sponsorblock).toBe('mark')
   })
+
+  it('accepts the subtitle format with languages, file format and auto subs', () => {
+    const parsed = JobOptionsSchema.parse({
+      format: 'subtitle',
+      subLangs: 'de,en.*',
+      subFormat: 'vtt',
+      autoSubs: true,
+    })
+
+    expect(parsed.format).toBe('subtitle')
+    expect(parsed.subLangs).toBe('de,en.*')
+    expect(parsed.subFormat).toBe('vtt')
+    expect(parsed.autoSubs).toBe(true)
+  })
+
+  it('leaves the subtitle fields undefined when they are not given', () => {
+    const parsed = JobOptionsSchema.parse({ format: 'subtitle' })
+
+    expect(parsed.subLangs).toBeUndefined()
+    expect(parsed.subFormat).toBeUndefined()
+    expect(parsed.autoSubs).toBeUndefined()
+  })
+
+  it('rejects a language list that would split into more than one argument', () => {
+    expect(() => JobOptionsSchema.parse({ subLangs: 'en --exec rm' })).toThrow()
+    expect(() => JobOptionsSchema.parse({ subLangs: 'x'.repeat(201) })).toThrow()
+  })
+
+  it('rejects an unknown subtitle file format', () => {
+    expect(() => JobOptionsSchema.parse({ subFormat: 'sub' })).toThrow()
+  })
 })

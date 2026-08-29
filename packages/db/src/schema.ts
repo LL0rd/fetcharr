@@ -15,7 +15,7 @@ export const auth = sqliteTable('auth', {
 export const jobs = sqliteTable('jobs', {
   uid: text('uid').primaryKey(),
   url: text('url').notNull(),
-  type: text('type', { enum: ['video', 'audio'] }).notNull(),
+  type: text('type', { enum: ['video', 'audio', 'subtitle'] }).notNull(),
   status: text('status', {
     enum: ['queued', 'running', 'paused', 'finished', 'errored', 'cancelled'],
   })
@@ -46,7 +46,7 @@ export const files = sqliteTable('files', {
   url: text('url').notNull(),
   title: text('title').notNull(),
   uploader: text('uploader'),
-  type: text('type', { enum: ['video', 'audio'] }).notNull(),
+  type: text('type', { enum: ['video', 'audio', 'subtitle'] }).notNull(),
   path: text('path').notNull(),
   sizeBytes: integer('size_bytes'),
   durationSec: real('duration_sec'),
@@ -72,7 +72,7 @@ export const subscriptions = sqliteTable('subscriptions', {
   url: text('url').notNull(),
   name: text('name').notNull(),
   type: text('type', { enum: ['channel', 'playlist', 'generic'] }).notNull().default('channel'),
-  mediaType: text('media_type', { enum: ['video', 'audio'] }).notNull().default('video'),
+  mediaType: text('media_type', { enum: ['video', 'audio', 'subtitle'] }).notNull().default('video'),
   cron: text('cron').notNull().default('0 */6 * * *'),
   paused: integer('paused', { mode: 'boolean' }).notNull().default(false),
   timerangeFrom: text('timerange_from'),   // YYYYMMDD — nur Videos ab diesem Datum
@@ -95,7 +95,7 @@ export const archive = sqliteTable('archive', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   extractor: text('extractor').notNull(),
   mediaId: text('media_id').notNull(),
-  type: text('type', { enum: ['video', 'audio'] }).notNull().default('video'),
+  type: text('type', { enum: ['video', 'audio', 'subtitle'] }).notNull().default('video'),
   subId: text('sub_id'),
   title: text('title'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),

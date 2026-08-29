@@ -77,6 +77,37 @@ describe('POST /api/jobs', () => {
     expect(job.type).toBe('audio')
   })
 
+  it('derives the subtitle type from the format', async () => {
+    const job = await createJobViaApi({ options: { format: 'subtitle' } })
+    expect(job.type).toBe('subtitle')
+  })
+
+  it('keeps the subtitle options on the job', async () => {
+    const job = await createJobViaApi({
+      options: { format: 'subtitle', subLangs: 'de,en', subFormat: 'vtt', autoSubs: true },
+    })
+
+    expect(job.options).toEqual({
+      format: 'subtitle',
+      sponsorblock: 'off',
+      subLangs: 'de,en',
+      subFormat: 'vtt',
+      autoSubs: true,
+    })
+  })
+
+  it('rejects a language list with a space in it', async () => {
+    const error = await expectHttpError(
+      handlers.create({
+        body: {
+          url: 'https://youtu.be/abc',
+          options: { format: 'subtitle', subLangs: 'en --exec rm' },
+        },
+      }),
+    )
+    expect(error.statusCode).toBe(400)
+  })
+
   it('rejects a missing or non-http url with 400', async () => {
     const noUrl = await expectHttpError(handlers.create({ body: {} }))
     expect(noUrl.statusCode).toBe(400)
@@ -235,6 +266,19 @@ describe('POST /api/args-preview', () => {
       handlers.argsPreview({ body: { options: { sponsorblock: 'maybe' } } }),
     )
     expect(error.statusCode).toBe(400)
+  })
+
+  it('derives the subtitle type from the format alone', async () => {
+    process.env.DOWNLOADS_DIR = '/data/downloads'
+
+    const { args } = await handlers.argsPreview({
+      body: { options: { format: 'subtitle', subLangs: 'de', subFormat: 'vtt' } },
+    })
+
+    expect(args.slice(0, 2)).toEqual(['--skip-download', '--write-subs'])
+    expect(args.join(' ')).toContain('--sub-langs de')
+    expect(args.join(' ')).toContain('--convert-subs vtt')
+    expect(args).toContain('/data/downloads/subtitle/%(uploader)s/%(title)s [%(id)s].%(ext)s')
   })
 })
 

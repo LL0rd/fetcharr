@@ -37,6 +37,12 @@ const CONTENT_TYPES: Record<string, string> = {
   '.png': 'image/png',
   '.webp': 'image/webp',
   '.gif': 'image/gif',
+  // Untertitel werden im Browser gelesen, nicht heruntergeladen — daher als Text.
+  '.srt': 'text/plain; charset=utf-8',
+  '.vtt': 'text/vtt; charset=utf-8',
+  '.ass': 'text/plain; charset=utf-8',
+  '.ssa': 'text/plain; charset=utf-8',
+  '.lrc': 'text/plain; charset=utf-8',
 }
 
 /**

@@ -20,7 +20,10 @@ const ALWAYS = [
 
 const DEFAULT_TEMPLATE = '%(uploader)s/%(title)s [%(id)s]'
 
-function job(options: Record<string, unknown>, type: 'video' | 'audio' = 'video'): ArgsJob {
+function job(
+  options: Record<string, unknown>,
+  type: ArgsJob['type'] = 'video',
+): ArgsJob {
   return { type, options: JobOptionsSchema.parse(options) }
 }
 
@@ -185,5 +188,65 @@ describe('buildArgs — purity', () => {
     const b = buildArgs(job({}), settings, paths)
     expect(a).not.toBe(b)
     expect(a).toEqual(b)
+  })
+})
+
+describe('buildArgs — subtitle only', () => {
+  it('skips the download and asks for the subtitle track instead', () => {
+    const args = buildArgs(job({ format: 'subtitle' }, 'subtitle'), settings, paths)
+
+    expect(args.slice(0, 2)).toEqual(['--skip-download', '--write-subs'])
+    expect(args).not.toContain('--merge-output-format')
+    expect(args).not.toContain('-x')
+    expect(args).not.toContain('-f')
+  })
+
+  it('defaults to english srt', () => {
+    const args = buildArgs(job({ format: 'subtitle' }, 'subtitle'), settings, paths)
+
+    expect(args).toContain('--sub-langs')
+    expect(args[args.indexOf('--sub-langs') + 1]).toBe('en')
+    expect(args[args.indexOf('--convert-subs') + 1]).toBe('srt')
+  })
+
+  it('passes the chosen languages and file format through', () => {
+    const args = buildArgs(
+      job({ format: 'subtitle', subLangs: 'de,en.*', subFormat: 'vtt' }, 'subtitle'),
+      settings,
+      paths,
+    )
+
+    expect(args[args.indexOf('--sub-langs') + 1]).toBe('de,en.*')
+    expect(args[args.indexOf('--convert-subs') + 1]).toBe('vtt')
+  })
+
+  it('adds --write-auto-subs only when auto-generated tracks are wanted', () => {
+    const withAuto = buildArgs(
+      job({ format: 'subtitle', autoSubs: true }, 'subtitle'),
+      settings,
+      paths,
+    )
+    const without = buildArgs(job({ format: 'subtitle' }, 'subtitle'), settings, paths)
+
+    expect(withAuto).toContain('--write-auto-subs')
+    expect(without).not.toContain('--write-auto-subs')
+  })
+
+  it('drops the subtitle options again for every other format', () => {
+    const args = buildArgs(
+      job({ format: 'best', subLangs: 'de', subFormat: 'vtt', autoSubs: true }),
+      settings,
+      paths,
+    )
+
+    expect(args).not.toContain('--sub-langs')
+    expect(args).not.toContain('--convert-subs')
+    expect(args).not.toContain('--write-auto-subs')
+  })
+
+  it('files the result under the subtitle folder by default', () => {
+    const args = buildArgs(job({ format: 'subtitle' }, 'subtitle'), settings, paths)
+
+    expect(args[args.indexOf('-o') + 1]).toBe(`/downloads/subtitle/${DEFAULT_TEMPLATE}.%(ext)s`)
   })
 })

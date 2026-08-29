@@ -4,6 +4,10 @@ import { join } from 'node:path'
 import { JobOptionsSchema, buildArgs } from '@fetcharr/shared'
 import type { ArgsJob, GlobalSettings } from '@fetcharr/shared'
 
+import { typeForFormat } from './jobs/index.post'
+
+const TYPES = new Set(['video', 'audio', 'subtitle'])
+
 /** Zeigt im Add-Dialog live, womit yt-dlp tatsächlich aufgerufen würde. */
 export default defineEventHandler(async (event) => {
   const body = (await readBody(event)) ?? {}
@@ -17,7 +21,9 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const type = body.type === 'audio' || parsed.data.format === 'audio' ? 'audio' : 'video'
+  const type = TYPES.has(body.type as string)
+    ? (body.type as ArgsJob['type'])
+    : typeForFormat(parsed.data.format)
   const job: ArgsJob = { type, options: parsed.data }
 
   const db = await useDb()

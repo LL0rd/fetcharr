@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { emptyDraft, toJobOptions, withLiveFromStart } from './add-download-options'
+import { SUBTITLE_FORMATS } from '@fetcharr/shared'
+
+import { ADD_FORMATS, emptyDraft, toJobOptions, withLiveFromStart } from './add-download-options'
 
 interface ProbeResult {
   url: string
@@ -27,6 +29,7 @@ const argsPreview = ref('')
 const recordFromStart = ref(false)
 
 const isLive = computed(() => probe.value?.isLive === true)
+const subtitlesOnly = computed(() => draft.value.format === 'subtitle')
 
 /** Was der Job wirklich bekommt — inklusive `--live-from-start`, wenn gewählt. */
 const jobOptions = computed(() =>
@@ -40,6 +43,7 @@ const kind = computed(() => {
     const count = probe.value.entryCount
     return count ? `playlist · ${count} items` : 'playlist detected'
   }
+  if (subtitlesOnly.value) return 'subtitles only'
   return draft.value.format === 'audio' ? 'audio detected' : 'video detected'
 })
 
@@ -154,10 +158,31 @@ async function addToQueue(): Promise<void> {
 
       <div class="field">
         <label>Format</label>
-        <SegmentedControl v-model="draft.format" :options="['best', '1080p', '720p', 'audio']" />
+        <SegmentedControl v-model="draft.format" :options="ADD_FORMATS" />
       </div>
 
-      <label v-if="isLive" class="add-live-option">
+      <div v-if="subtitlesOnly" class="subs">
+        <p class="subs-hint">No video or audio is downloaded — only the subtitle track.</p>
+        <div class="subs-grid">
+          <div class="field">
+            <label for="sub-langs">Languages</label>
+            <input id="sub-langs" v-model="draft.subLangs" class="input mono" placeholder="en">
+          </div>
+          <div class="field">
+            <label>File format</label>
+            <SegmentedControl v-model="draft.subFormat" :options="SUBTITLE_FORMATS" />
+          </div>
+        </div>
+        <label class="subs-auto">
+          <input v-model="draft.autoSubs" type="checkbox">
+          <span>
+            Include auto-generated
+            <em>Falls back to the platform's machine transcript when no human subtitles exist.</em>
+          </span>
+        </label>
+      </div>
+
+      <label v-if="isLive && !subtitlesOnly" class="add-live-option">
         <input v-model="recordFromStart" type="checkbox">
         <span>
           Record from start
@@ -262,6 +287,18 @@ async function addToQueue(): Promise<void> {
   background: var(--color-neutral-100);
   border: 1px solid var(--color-divider);
 }
+
+.subs { display: flex; flex-direction: column; gap: 10px; }
+.subs-hint { margin: 0; font-size: 12px; color: var(--color-neutral-700); }
+.subs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
+.subs-auto { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; }
+.subs-auto em {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--color-neutral-700);
+}
+.mono { font-family: ui-monospace, monospace; font-size: 12px; }
 
 .add-actions { margin-top: 0; }
 </style>

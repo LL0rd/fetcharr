@@ -1,5 +1,10 @@
 import type { Db } from '@fetcharr/db'
-import { SETTINGS_KEYS, toGlobalSettings, type GlobalSettings } from '@fetcharr/shared'
+import {
+  SETTINGS_KEYS,
+  toGlobalSettings,
+  type GlobalSettings,
+  type MediaKind,
+} from '@fetcharr/shared'
 
 /** Direkte SQL-Zugriffe des Workers jenseits des Job-Repositories. */
 
@@ -61,7 +66,7 @@ export interface FileInput {
   url: string
   title: string
   uploader: string | null
-  type: 'video' | 'audio'
+  type: MediaKind
   path: string
   sizeBytes: number | null
   durationSec: number | null

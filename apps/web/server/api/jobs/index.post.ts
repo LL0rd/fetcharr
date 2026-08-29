@@ -1,8 +1,9 @@
 import { createJob } from '@fetcharr/db'
 import type { CreateJobInput } from '@fetcharr/db'
 import { JobOptionsSchema } from '@fetcharr/shared'
+import type { JobOptions } from '@fetcharr/shared'
 
-const TYPES = new Set(['video', 'audio'])
+const TYPES = new Set(['video', 'audio', 'subtitle'])
 
 /**
  * Nimmt einen neuen Download in die Queue. `title`/`uploader` kommen aus dem
@@ -33,9 +34,12 @@ export function parseCreateBody(body: Record<string, unknown>): CreateJobInput {
     })
   }
 
-  const type = body.type ?? (parsed.data.format === 'audio' ? 'audio' : 'video')
+  const type = body.type ?? typeForFormat(parsed.data.format)
   if (typeof type !== 'string' || !TYPES.has(type)) {
-    throw createError({ statusCode: 400, statusMessage: 'type must be video or audio' })
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'type must be video, audio or subtitle',
+    })
   }
 
   const priority = body.priority ?? 0
@@ -51,6 +55,13 @@ export function parseCreateBody(body: Record<string, unknown>): CreateJobInput {
     title: optionalText(body.title),
     uploader: optionalText(body.uploader),
   }
+}
+
+/** Das gewählte Format bestimmt die Rolle des Ergebnisses, wenn `type` fehlt. */
+export function typeForFormat(format: JobOptions['format']): CreateJobInput['type'] {
+  if (format === 'audio') return 'audio'
+  if (format === 'subtitle') return 'subtitle'
+  return 'video'
 }
 
 function optionalText(value: unknown): string | null {

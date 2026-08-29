@@ -2,7 +2,7 @@ import { rename, rm, stat } from 'node:fs/promises'
 import { dirname, extname, join } from 'node:path'
 
 import type { Db } from '@fetcharr/db'
-import type { JobOptions } from '@fetcharr/shared'
+import type { JobOptions, MediaKind } from '@fetcharr/shared'
 import { execa } from 'execa'
 
 import { writeNfoFile } from './nfo.ts'
@@ -18,6 +18,8 @@ import { getSetting } from './store.ts'
 export interface PostProcessInput {
   /** Absoluter Pfad der Mediendatei im Zielbaum. */
   mediaPath: string
+  /** Default `video`; `subtitle` überspringt NFO und Schnitt. */
+  type?: MediaKind
   thumbnailPath: string | null
   info: Record<string, unknown> | null
   options: Pick<JobOptions, 'cropStart' | 'cropEnd'>
@@ -64,7 +66,11 @@ export async function postProcess(
     nfoPath: null,
   }
 
-  if (deps.writeNfo && input.info) {
+  // Eine Untertitelspur ist kein Mediathek-Eintrag für Jellyfin/Plex und lässt sich
+  // auch nicht schneiden — NFO und Crop bleiben hier außen vor.
+  const subtitleOnly = input.type === 'subtitle'
+
+  if (deps.writeNfo && input.info && !subtitleOnly) {
     try {
       result.nfoPath = await writeNfoFile(input.mediaPath, input.info)
     } catch (error) {
@@ -76,7 +82,7 @@ export async function postProcess(
     result.thumbnailPath = await convertThumbnail(result.thumbnailPath, deps, log)
   }
 
-  const cropped = await crop(input, deps, log)
+  const cropped = subtitleOnly ? null : await crop(input, deps, log)
   if (cropped) {
     result.durationSec = cropped.durationSec
     result.sizeBytes = cropped.sizeBytes

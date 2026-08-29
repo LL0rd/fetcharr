@@ -3,7 +3,7 @@ import type { ListFilesOptions } from '@fetcharr/db'
 
 const SORTS = new Set(['date', 'title', 'size'])
 const ORDERS = new Set(['asc', 'desc'])
-const TYPES = new Set(['video', 'audio'])
+const TYPES = new Set(['video', 'audio', 'subtitle'])
 
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 200
@@ -32,7 +32,10 @@ export function parseListQuery(
 
   const type = text(query.type)
   if (type && !TYPES.has(type)) {
-    throw createError({ statusCode: 400, statusMessage: 'type must be video or audio' })
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'type must be video, audio or subtitle',
+    })
   }
 
   return {

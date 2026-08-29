@@ -13,7 +13,7 @@ import { withNextCheck } from './index.get.ts'
  */
 
 const TYPES = new Set(['channel', 'playlist', 'generic'])
-const MEDIA_TYPES = new Set(['video', 'audio'])
+const MEDIA_TYPES = new Set(['video', 'audio', 'subtitle'])
 const QUALITIES = new Set(['best', '1080p', '720p', 'audio'])
 const SPONSORBLOCK = new Set(['remove', 'mark', 'off'])
 

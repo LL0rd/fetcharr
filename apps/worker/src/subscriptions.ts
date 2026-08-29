@@ -200,12 +200,19 @@ function jobOptions(sub: Subscription, live: boolean): JobOptions {
     .join(' ')
 
   return {
-    format: sub.mediaType === 'audio' ? 'audio' : quality(sub.maxQuality),
+    format: mediaFormat(sub),
     sponsorblock: sub.sponsorblock,
     ...(customArgs ? { customArgs } : {}),
     ...(sub.customOutput ? { outputTemplate: sub.customOutput } : {}),
     targetFolder: `subscriptions/${sanitizeFolder(sub.name)}`,
   }
+}
+
+/** Audio- und Untertitel-Abos ignorieren die Qualitätsstufe — die gibt es dort nicht. */
+function mediaFormat(sub: Subscription): JobOptions['format'] {
+  if (sub.mediaType === 'audio') return 'audio'
+  if (sub.mediaType === 'subtitle') return 'subtitle'
+  return quality(sub.maxQuality)
 }
 
 function quality(maxQuality: string | null): JobOptions['format'] {

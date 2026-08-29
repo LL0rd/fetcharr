@@ -4,7 +4,7 @@ export interface LibraryFile {
   url: string
   title: string
   uploader: string | null
-  type: 'video' | 'audio'
+  type: 'video' | 'audio' | 'subtitle'
   path: string
   sizeBytes: number | null
   durationSec: number | null
@@ -26,7 +26,7 @@ export interface LibraryPage {
 /** Wie viele Kacheln eine Seite bringt — „Load more" hängt die nächste an. */
 export const LIBRARY_PAGE_SIZE = 48
 
-export const LIBRARY_FILTERS = ['All', 'Video', 'Audio', 'Favs'] as const
+export const LIBRARY_FILTERS = ['All', 'Video', 'Audio', 'Subs', 'Favs'] as const
 export const LIBRARY_SORTS = ['Date', 'Title', 'Size'] as const
 
 export type LibraryFilter = (typeof LIBRARY_FILTERS)[number]
@@ -36,6 +36,7 @@ export type LibrarySort = (typeof LIBRARY_SORTS)[number]
 export function filterQuery(filter: LibraryFilter): { type?: string; favorite?: string } {
   if (filter === 'Video') return { type: 'video' }
   if (filter === 'Audio') return { type: 'audio' }
+  if (filter === 'Subs') return { type: 'subtitle' }
   if (filter === 'Favs') return { favorite: 'true' }
   return {}
 }
@@ -61,5 +62,12 @@ export function thumbnailUrl(file: LibraryFile): string {
 
 /** Was im schraffierten Platzhalter steht, wenn kein Bild geladen werden kann. */
 export function thumbLabel(file: LibraryFile): string {
-  return file.type === 'audio' ? 'cover art' : 'video thumb'
+  if (file.type === 'audio') return 'cover art'
+  if (file.type === 'subtitle') return 'subtitles'
+  return 'video thumb'
+}
+
+/** Untertitel haben keinen Player — die Watch-Seite zeigt sie als Text. */
+export function isSubtitleFile(file: LibraryFile): boolean {
+  return file.type === 'subtitle'
 }

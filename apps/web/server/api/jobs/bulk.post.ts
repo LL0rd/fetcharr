@@ -2,7 +2,9 @@ import { createJob } from '@fetcharr/db'
 import type { CreateJobInput, Job } from '@fetcharr/db'
 import { JobOptionsSchema } from '@fetcharr/shared'
 
-const TYPES = new Set(['video', 'audio'])
+import { typeForFormat } from './index.post'
+
+const TYPES = new Set(['video', 'audio', 'subtitle'])
 const MAX_URLS = 500
 
 export interface BulkImportInput {
@@ -53,9 +55,12 @@ export function parseBulkBody(body: Record<string, unknown>): BulkImportInput {
     })
   }
 
-  const type = body.type ?? (parsed.data.format === 'audio' ? 'audio' : 'video')
+  const type = body.type ?? typeForFormat(parsed.data.format)
   if (typeof type !== 'string' || !TYPES.has(type)) {
-    throw createError({ statusCode: 400, statusMessage: 'type must be video or audio' })
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'type must be video, audio or subtitle',
+    })
   }
 
   const urls: string[] = []

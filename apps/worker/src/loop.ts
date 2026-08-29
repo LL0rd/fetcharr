@@ -152,6 +152,7 @@ export function startLoop(options: LoopOptions): WorkerLoop {
     const info = result.info ?? {}
     const media = await runPostProcess({
       mediaPath: result.path,
+      type: job.type,
       thumbnailPath: result.thumbnailPath,
       info: result.info,
       options: jobOptions,

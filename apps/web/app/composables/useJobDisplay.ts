@@ -11,8 +11,11 @@ export function jobOptions(job: QueueJob): Partial<JobOptions> {
 
 /** Was in der Format-Spalte steht — `audio` lädt yt-dlp als mp3 herunter. */
 export function jobFormatLabel(job: QueueJob): string {
-  const format = jobOptions(job).format ?? 'best'
-  return format === 'audio' ? 'mp3' : format
+  const options = jobOptions(job)
+  const format = options.format ?? 'best'
+  if (format === 'audio') return 'mp3'
+  if (format === 'subtitle') return `subs · ${options.subLangs || 'en'}`
+  return format
 }
 
 export function jobPriorityLabel(job: QueueJob): string {

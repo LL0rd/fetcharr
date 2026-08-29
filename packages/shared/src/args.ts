@@ -1,7 +1,10 @@
 import type { JobOptions } from './job-options.ts'
 
+/** Die drei Rollen, in denen eine Datei in der Mediathek landen kann. */
+export type MediaKind = 'video' | 'audio' | 'subtitle'
+
 export interface ArgsJob {
-  type: 'video' | 'audio'
+  type: MediaKind
   options: JobOptions
 }
 
@@ -25,7 +28,13 @@ const FORMAT_ARGS: Record<JobOptions['format'], string[]> = {
   '1080p': ['-S', 'res:1080', '--merge-output-format', 'mp4'],
   '720p': ['-S', 'res:720', '--merge-output-format', 'mp4'],
   audio: ['-x', '--audio-format', 'mp3', '--embed-thumbnail', '--add-metadata'],
+  // `--skip-download` lässt yt-dlp Metadaten, Thumbnail und Untertitel holen,
+  // aber keinen einzigen Medien-Stream — genau das ist der Untertitel-Modus.
+  subtitle: ['--skip-download', '--write-subs'],
 }
+
+export const DEFAULT_SUB_LANGS = 'en'
+export const DEFAULT_SUB_FORMAT = 'srt'
 
 // -j schaltet yt-dlp in den Quiet-Mode: ohne --progress kämen keine [download]-Zeilen,
 // ohne --newline überschriebe yt-dlp sie per CR — der Progress-Parser bekäme nichts.
@@ -82,6 +91,12 @@ export function tokenizeArgs(input: string): string[] {
 export function buildArgs(job: ArgsJob, settings: GlobalSettings, paths: ArgsPaths): string[] {
   const { options } = job
   const args: string[] = [...FORMAT_ARGS[options.format]]
+
+  if (options.format === 'subtitle') {
+    if (options.autoSubs) args.push('--write-auto-subs')
+    args.push('--sub-langs', options.subLangs || DEFAULT_SUB_LANGS)
+    args.push('--convert-subs', options.subFormat ?? DEFAULT_SUB_FORMAT)
+  }
 
   if (options.sponsorblock === 'remove') args.push('--sponsorblock-remove', 'default')
   else if (options.sponsorblock === 'mark') args.push('--sponsorblock-mark', 'default')

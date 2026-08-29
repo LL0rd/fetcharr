@@ -3,6 +3,10 @@ import type { DraftOptions } from './add-download-options'
 
 const draft = defineModel<DraftOptions>({ required: true })
 const open = ref(false)
+
+// Schnitt und SponsorBlock greifen nur an einem Medienstrom — bei reinen
+// Untertiteln blieben die Felder wirkungslos stehen.
+const mediaOptions = computed(() => draft.value.format !== 'subtitle')
 </script>
 
 <template>
@@ -15,7 +19,7 @@ const open = ref(false)
       >
         <polyline points="6 9 12 15 18 9" />
       </svg>
-      Advanced — args, output, crop, SponsorBlock, folder
+      {{ mediaOptions ? 'Advanced — args, output, crop, SponsorBlock, folder' : 'Advanced — args, output, folder' }}
     </button>
 
     <div v-if="open" class="advanced-body">
@@ -30,22 +34,27 @@ const open = ref(false)
         </div>
       </div>
 
-      <div class="grid-3">
-        <div class="field">
+      <div :class="mediaOptions ? 'grid-3' : 'grid-1'">
+        <div v-if="mediaOptions" class="field">
           <label for="adv-crop-start">Crop start</label>
           <input id="adv-crop-start" v-model="draft.cropStart" class="input" placeholder="00:00:00">
         </div>
-        <div class="field">
+        <div v-if="mediaOptions" class="field">
           <label for="adv-crop-end">Crop end</label>
           <input id="adv-crop-end" v-model="draft.cropEnd" class="input" placeholder="(end)">
         </div>
         <div class="field">
           <label for="adv-folder">Target folder</label>
-          <input id="adv-folder" v-model="draft.targetFolder" class="input small" placeholder="video">
+          <input
+            id="adv-folder"
+            v-model="draft.targetFolder"
+            class="input small"
+            :placeholder="mediaOptions ? 'video' : 'subtitle'"
+          >
         </div>
       </div>
 
-      <div class="field">
+      <div v-if="mediaOptions" class="field">
         <label>SponsorBlock</label>
         <SegmentedControl v-model="draft.sponsorblock" :options="['remove', 'mark', 'off']" />
       </div>
@@ -76,6 +85,7 @@ const open = ref(false)
 .advanced-body { display: flex; flex-direction: column; gap: 10px; padding-bottom: 6px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.grid-1 { display: grid; grid-template-columns: 1fr; gap: 10px; }
 
 .mono { font-family: ui-monospace, monospace; font-size: 12px; }
 .small { font-size: 12px; }

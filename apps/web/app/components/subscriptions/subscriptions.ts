@@ -4,7 +4,7 @@ export interface Subscription {
   url: string
   name: string
   type: 'channel' | 'playlist' | 'generic'
-  mediaType: 'video' | 'audio'
+  mediaType: 'video' | 'audio' | 'subtitle'
   cron: string
   paused: boolean
   timerangeFrom: string | null
@@ -49,7 +49,7 @@ export interface SubscriptionDraft {
 }
 
 export const TYPES = ['channel', 'playlist', 'generic'] as const
-export const MEDIA_TYPES = ['video', 'audio'] as const
+export const MEDIA_TYPES = ['video', 'audio', 'subtitle'] as const
 export const QUALITIES = ['best', '1080p', '720p', 'audio'] as const
 export const SPONSORBLOCK = ['remove', 'mark', 'off'] as const
 

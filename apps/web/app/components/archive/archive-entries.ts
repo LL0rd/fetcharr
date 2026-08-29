@@ -2,7 +2,7 @@ export interface ArchiveEntry {
   id: number
   extractor: string
   mediaId: string
-  type: 'video' | 'audio'
+  type: 'video' | 'audio' | 'subtitle'
   subId: string | null
   subName: string | null
   title: string | null

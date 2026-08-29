@@ -5,8 +5,10 @@ set -u
 
 out=""
 prev=""
+subs_only=0
 for arg in "$@"; do
   if [ "$prev" = "-o" ]; then out="$arg"; fi
+  if [ "$arg" = "--skip-download" ]; then subs_only=1; fi
   prev="$arg"
 done
 
@@ -34,8 +36,15 @@ base=$(printf '%s' "$out" | sed \
   -e 's|\.%(ext)s$||')
 
 mkdir -p "$(dirname "$base")"
-printf 'video-bytes' > "$base.mp4"
 printf '%s' "$info" > "$base.info.json"
 printf 'jpeg-bytes' > "$base.jpg"
+
+# --skip-download: kein Medienstrom, dafuer eine Spur je angeforderter Sprache.
+if [ "$subs_only" = "1" ]; then
+  printf 'srt-bytes-en' > "$base.en.srt"
+  printf 'srt-bytes-de' > "$base.de.srt"
+else
+  printf 'video-bytes' > "$base.mp4"
+fi
 
 exit 0

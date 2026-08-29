@@ -80,6 +80,27 @@ The template defaults to:
 
 Adjust the `/downloads` path to the share your media library actually lives on.
 
+## Subtitle-only downloads
+
+Picking **subtitle** as the format in the add dialog fetches the subtitle track without any video or
+audio. yt-dlp runs with `--skip-download --write-subs`, so only the timed text, the thumbnail and the
+metadata sidecar are written. The dialog exposes three settings:
+
+| Setting | yt-dlp flag | Default |
+| --- | --- | --- |
+| Languages | `--sub-langs` | `en` |
+| File format | `--convert-subs` | `srt` |
+| Include auto-generated | `--write-auto-subs` | on |
+
+Languages take the yt-dlp syntax — a comma-separated list such as `de,en.*`, or `all`. Requesting
+several languages writes one file per language; the library entry points at the first of them, the
+rest sit next to it in the same folder.
+
+Finished subtitles land under `<DOWNLOADS_DIR>/subtitle/` instead of `video/`, appear in the library
+behind the **Subs** filter, and open as readable text instead of a player. Subscriptions accept
+`subtitle` as their media type too, which keeps a channel's subtitles in sync without storing a
+single video file.
+
 ## Project structure
 
 This is a pnpm workspace monorepo.

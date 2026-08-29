@@ -1,7 +1,7 @@
-export { JobOptionsSchema } from './job-options.ts'
+export { JobOptionsSchema, SUBTITLE_FORMATS } from './job-options.ts'
 export type { JobOptions } from './job-options.ts'
-export { buildArgs, tokenizeArgs } from './args.ts'
-export type { ArgsJob, ArgsPaths, GlobalSettings } from './args.ts'
+export { DEFAULT_SUB_FORMAT, DEFAULT_SUB_LANGS, buildArgs, tokenizeArgs } from './args.ts'
+export type { ArgsJob, ArgsPaths, GlobalSettings, MediaKind } from './args.ts'
 export {
   FORMATS,
   LOG_LEVELS,

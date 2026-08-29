@@ -109,3 +109,66 @@ describe('runDownload', () => {
     expect(readdirSync(downloadsDir)).toEqual([])
   }, 15000)
 })
+
+describe('runDownload — subtitle only', () => {
+  const subtitleJob: RunnerJob = {
+    ...job,
+    uid: 'job-subs',
+    type: 'subtitle',
+    options: { format: 'subtitle', sponsorblock: 'off', subLangs: 'de,en', subFormat: 'srt' },
+  }
+
+  it('makes the subtitle track the library file and downloads no media', async () => {
+    const handle = runDownload({ job: subtitleJob, downloadsDir, binary: FAKE_YTDLP })
+    const result = await handle.result
+
+    expect(result.status).toBe('finished')
+    if (result.status !== 'finished') return
+
+    const folder = join(downloadsDir, 'subtitle', 'Test Channel')
+    expect(result.path).toBe(join(folder, 'Test Video [abc123].de.srt'))
+    expect(readFileSync(result.path, 'utf8')).toBe('srt-bytes-de')
+    expect(existsSync(join(folder, 'Test Video [abc123].mp4'))).toBe(false)
+  })
+
+  it('keeps every requested language in the target tree', async () => {
+    const handle = runDownload({ job: subtitleJob, downloadsDir, binary: FAKE_YTDLP })
+    await handle.result
+
+    const folder = join(downloadsDir, 'subtitle', 'Test Channel')
+    expect(readdirSync(folder).sort()).toEqual([
+      'Test Video [abc123].de.srt',
+      'Test Video [abc123].en.srt',
+      'Test Video [abc123].info.json',
+      'Test Video [abc123].jpg',
+    ])
+  })
+
+  it('still reports the thumbnail and the info json', async () => {
+    const handle = runDownload({ job: subtitleJob, downloadsDir, binary: FAKE_YTDLP })
+    const result = await handle.result
+
+    expect(result.status).toBe('finished')
+    if (result.status !== 'finished') return
+
+    expect(result.thumbnailPath).toBe(
+      join(downloadsDir, 'subtitle', 'Test Channel', 'Test Video [abc123].jpg'),
+    )
+    expect(result.info?.id).toBe('abc123')
+  })
+
+  it('fails when yt-dlp produced no subtitle at all', async () => {
+    // Ohne --skip-download legt das Fixture nur eine mp4 an — für einen
+    // Untertitel-Job ist das kein brauchbares Ergebnis.
+    const handle = runDownload({
+      job: { ...subtitleJob, options: { format: 'best', sponsorblock: 'off' } },
+      downloadsDir,
+      binary: FAKE_YTDLP,
+    })
+    const result = await handle.result
+
+    expect(result.status).toBe('failed')
+    if (result.status !== 'failed') return
+    expect(result.stderr).toContain('no subtitle file')
+  })
+})
