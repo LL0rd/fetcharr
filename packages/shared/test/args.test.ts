@@ -244,6 +244,28 @@ describe('buildArgs — subtitle only', () => {
     expect(args).not.toContain('--write-auto-subs')
   })
 
+  /**
+   * Regression: der YouTube-Client-Pin aus ALWAYS_ARGS liess YouTube die Caption-
+   * Tracks ohne PO-Token verwerfen ("Some mweb client subtitles require a PO Token
+   * ... They will be discarded") — der Job lief sauber durch und lieferte nichts.
+   */
+  it('drops the youtube client pin, which would discard the caption tracks', () => {
+    const args = buildArgs(job({ format: 'subtitle' }, 'subtitle'), settings, paths)
+
+    expect(args).not.toContain('--extractor-args')
+    expect(args.join(' ')).not.toContain('player_client')
+  })
+
+  it('keeps the youtube client pin for every format that downloads a stream', () => {
+    for (const format of ['best', '1080p', '720p', 'audio'] as const) {
+      const type = format === 'audio' ? 'audio' : 'video'
+      const args = buildArgs(job({ format }, type), settings, paths)
+
+      expect(args).toContain('--extractor-args')
+      expect(args).toContain('youtube:player_client=web_safari,mweb')
+    }
+  })
+
   it('files the result under the subtitle folder by default', () => {
     const args = buildArgs(job({ format: 'subtitle' }, 'subtitle'), settings, paths)
 

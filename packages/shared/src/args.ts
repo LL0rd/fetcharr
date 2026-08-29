@@ -46,12 +46,19 @@ const ALWAYS_ARGS = [
   '--no-simulate',
   '--progress',
   '--newline',
-  // YouTubes Default-Clients (tv/android_vr) liefern die hier gewählten https-Formate ohne
-  // PO-Token mit 403 aus; web_safari lädt sauber, mweb ist der Fallback. Wirkt nur auf den
-  // YouTube-Extractor und ist für jede andere Site ein No-op — daher bedingungslos gesetzt.
-  '--extractor-args',
-  'youtube:player_client=web_safari,mweb',
 ]
+
+/**
+ * YouTubes Default-Clients (tv/android_vr) liefern die gewählten https-Formate ohne
+ * PO-Token mit 403 aus; web_safari lädt sauber, mweb ist der Fallback. Wirkt nur auf
+ * den YouTube-Extractor und ist für jede andere Site ein No-op.
+ *
+ * NICHT für Untertitel-Jobs: genau diese beiden Clients bekommen die Caption-Tracks
+ * ohne PO-Token nicht ausgeliefert und yt-dlp verwirft sie kommentarlos („Some mweb
+ * client subtitles require a PO Token … They will be discarded"). Ein Untertitel-Job
+ * lädt gar kein https-Format, der Pin hat dort also nur Nachteile.
+ */
+const YOUTUBE_CLIENT_ARGS = ['--extractor-args', 'youtube:player_client=web_safari,mweb']
 
 /** Zerlegt eine Args-Zeile in Tokens; einfache und doppelte Quotes halten Leerzeichen zusammen. */
 export function tokenizeArgs(input: string): string[] {
@@ -104,6 +111,7 @@ export function buildArgs(job: ArgsJob, settings: GlobalSettings, paths: ArgsPat
   if (settings.rateLimit) args.push('-r', settings.rateLimit)
 
   args.push(...ALWAYS_ARGS)
+  if (options.format !== 'subtitle') args.push(...YOUTUBE_CLIENT_ARGS)
 
   if (paths.cookiesPath) args.push('--cookies', paths.cookiesPath)
 
