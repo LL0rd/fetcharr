@@ -5,6 +5,8 @@ export interface Subscription {
   name: string
   type: 'channel' | 'playlist' | 'generic'
   mediaType: 'video' | 'audio' | 'subtitle'
+  withSubs: boolean
+  subLangs: string | null
   cron: string
   paused: boolean
   timerangeFrom: string | null
@@ -43,6 +45,8 @@ export interface SubscriptionDraft {
   customArgs: string
   customOutput: string
   sponsorblock: Subscription['sponsorblock']
+  withSubs: boolean
+  subLangs: string
   recordLivestreams: boolean
   redownloadFreshUploads: boolean
   rssEnabled: boolean
@@ -66,6 +70,8 @@ export function emptyDraft(): SubscriptionDraft {
     customArgs: '',
     customOutput: '',
     sponsorblock: 'off',
+    withSubs: false,
+    subLangs: '',
     recordLivestreams: false,
     redownloadFreshUploads: false,
     rssEnabled: false,
@@ -85,6 +91,8 @@ export function draftFrom(subscription: Subscription): SubscriptionDraft {
     customArgs: subscription.customArgs ?? '',
     customOutput: subscription.customOutput ?? '',
     sponsorblock: subscription.sponsorblock,
+    withSubs: subscription.withSubs,
+    subLangs: subscription.subLangs ?? '',
     recordLivestreams: subscription.recordLivestreams,
     redownloadFreshUploads: subscription.redownloadFreshUploads,
     rssEnabled: subscription.rssEnabled,

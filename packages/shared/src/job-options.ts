@@ -26,6 +26,11 @@ export const JobOptionsSchema = z.object({
   subFormat: z.enum(SUBTITLE_FORMATS).optional(),
   /** Auch automatisch erzeugte (ASR-)Untertitel mitnehmen. */
   autoSubs: z.boolean().optional(),
+  /**
+   * Untertitel ZUSÄTZLICH zum Medienstrom holen. Bedeutungslos für
+   * `format: 'subtitle'`, das ohnehin nur die Spur lädt.
+   */
+  withSubs: z.boolean().optional(),
 })
 
 export type JobOptions = z.infer<typeof JobOptionsSchema>

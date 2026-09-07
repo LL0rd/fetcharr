@@ -131,6 +131,19 @@ function statusMessageOf(error: unknown): string {
         <SegmentedControl v-model="draft.maxQuality" :options="QUALITIES" />
       </div>
 
+      <label v-if="draft.mediaType !== 'subtitle'" class="sub-flag">
+        <input v-model="draft.withSubs" type="checkbox">
+        <span>
+          Also download subtitles
+          <em>Saves the subtitle track next to each downloaded file.</em>
+        </span>
+      </label>
+
+      <div v-if="draft.withSubs || draft.mediaType === 'subtitle'" class="field">
+        <label for="sub-langs">Subtitle languages</label>
+        <input id="sub-langs" v-model="draft.subLangs" class="input mono" placeholder="en">
+      </div>
+
       <div class="field">
         <label>SponsorBlock</label>
         <SegmentedControl v-model="draft.sponsorblock" :options="SPONSORBLOCK" />
@@ -249,4 +262,11 @@ function statusMessageOf(error: unknown): string {
 .danger-check { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .danger-actions { display: flex; gap: 8px; }
 .sub-btn { font-size: 12px; padding: 5px 12px; }
+.sub-flag { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; }
+.sub-flag em {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--color-neutral-700);
+}
 </style>

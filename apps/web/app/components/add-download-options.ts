@@ -15,6 +15,8 @@ export interface DraftOptions {
   subLangs: string
   subFormat: string
   autoSubs: boolean
+  /** Untertitel zusätzlich zum Video/Audio — bei format 'subtitle' bedeutungslos. */
+  withSubs: boolean
 }
 
 export function emptyDraft(): DraftOptions {
@@ -29,7 +31,13 @@ export function emptyDraft(): DraftOptions {
     subLangs: DEFAULT_SUB_LANGS,
     subFormat: DEFAULT_SUB_FORMAT,
     autoSubs: true,
+    withSubs: false,
   }
+}
+
+/** Ob die Untertitel-Felder für diesen Entwurf überhaupt eine Wirkung haben. */
+export function draftWantsSubtitles(draft: DraftOptions): boolean {
+  return draft.format === 'subtitle' || draft.withSubs
 }
 
 /**
@@ -48,13 +56,14 @@ export function toJobOptions(draft: DraftOptions): JobOptions {
     if (value) options[key] = value
   }
 
-  // Die Untertitel-Felder sind für jedes andere Format bedeutungslos und würden
-  // die Args-Vorschau nur mit Optionen füllen, die gar nicht greifen.
-  if (draft.format === 'subtitle') {
+  // Die Untertitel-Felder nur mitschicken, wenn sie auch greifen — sonst füllt sich
+  // die Args-Vorschau mit Optionen, die der Job gar nicht benutzt.
+  if (draftWantsSubtitles(draft)) {
     const langs = draft.subLangs.trim()
     if (langs) options.subLangs = langs
     if (draft.subFormat) options.subFormat = draft.subFormat
     if (draft.autoSubs) options.autoSubs = true
+    if (draft.format !== 'subtitle') options.withSubs = true
   }
 
   return options as unknown as JobOptions

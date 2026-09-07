@@ -26,10 +26,12 @@ const TEXT_FIELDS = [
   'maxQuality',
   'customArgs',
   'customOutput',
+  'subLangs',
 ] as const
 
 const FLAG_FIELDS = [
   'paused',
+  'withSubs',
   'recordLivestreams',
   'redownloadFreshUploads',
   'rssEnabled',

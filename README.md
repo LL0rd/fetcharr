@@ -96,6 +96,12 @@ Languages take the yt-dlp syntax — a comma-separated list such as `de,en.*`, o
 several languages writes one file per language; the library entry points at the first of them, the
 rest sit next to it in the same folder.
 
+To keep the video **and** its subtitles, leave the format on `best`/`1080p`/`720p`/`audio` and tick
+*Also download subtitles* instead. The track is then written next to the media file as a sidecar.
+This runs yt-dlp twice, and it has to: YouTube does not serve the media formats and the caption
+tracks to the same player client, so one invocation can only ever get one of the two. A video whose
+subtitles fail still counts as a finished download.
+
 Finished subtitles land under `<DOWNLOADS_DIR>/subtitle/` instead of `video/`, appear in the library
 behind the **Subs** filter, and open as readable text instead of a player. Subscriptions accept
 `subtitle` as their media type too, which keeps a channel's subtitles in sync without storing a

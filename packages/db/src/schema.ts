@@ -81,6 +81,8 @@ export const subscriptions = sqliteTable('subscriptions', {
   customArgs: text('custom_args'),
   customOutput: text('custom_output'),
   sponsorblock: text('sponsorblock', { enum: ['remove', 'mark', 'off'] }).notNull().default('off'),
+  withSubs: integer('with_subs', { mode: 'boolean' }).notNull().default(false),  // Untertitel zusätzlich zum Video
+  subLangs: text('sub_langs'),             // --sub-langs; leer bedeutet en
   recordLivestreams: integer('record_livestreams', { mode: 'boolean' }).notNull().default(false),
   redownloadFreshUploads: integer('redownload_fresh_uploads', { mode: 'boolean' }).notNull().default(false),
   rssEnabled: integer('rss_enabled', { mode: 'boolean' }).notNull().default(false),

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildArgs } from '../src/args'
+import { buildArgs, buildSubtitleArgs, needsSubtitlePass } from '../src/args'
 import { JobOptionsSchema } from '../src/job-options'
 import type { ArgsJob, ArgsPaths, GlobalSettings } from '../src/args'
 
@@ -270,5 +270,39 @@ describe('buildArgs — subtitle only', () => {
     const args = buildArgs(job({ format: 'subtitle' }, 'subtitle'), settings, paths)
 
     expect(args[args.indexOf('-o') + 1]).toBe(`/downloads/subtitle/${DEFAULT_TEMPLATE}.%(ext)s`)
+  })
+})
+
+describe('buildArgs — video with subtitles', () => {
+  it('needs a second pass only when a media stream is downloaded too', () => {
+    expect(needsSubtitlePass(JobOptionsSchema.parse({ format: 'best', withSubs: true }))).toBe(true)
+    expect(needsSubtitlePass(JobOptionsSchema.parse({ format: 'best' }))).toBe(false)
+    // Ein Untertitel-Job holt die Spur schon im ersten Lauf.
+    expect(
+      needsSubtitlePass(JobOptionsSchema.parse({ format: 'subtitle', withSubs: true })),
+    ).toBe(false)
+  })
+
+  it('leaves the media pass untouched — subtitles are not a flag on it', () => {
+    const withFlag = buildArgs(job({ format: 'best', withSubs: true }), settings, paths)
+    const plain = buildArgs(job({ format: 'best' }), settings, paths)
+
+    expect(withFlag).toEqual(plain)
+    expect(withFlag).toContain('youtube:player_client=web_safari,mweb')
+  })
+
+  it('builds the second pass as a subtitle run that keeps the media folder', () => {
+    const sub = buildSubtitleArgs(
+      job({ format: 'best', withSubs: true, subLangs: 'de', subFormat: 'vtt' }),
+      settings,
+      paths,
+    )
+
+    expect(sub.slice(0, 2)).toEqual(['--skip-download', '--write-subs'])
+    expect(sub[sub.indexOf('--sub-langs') + 1]).toBe('de')
+    // Ohne Client-Pin, sonst verwirft YouTube die Caption-Tracks.
+    expect(sub).not.toContain('--extractor-args')
+    // Gleicher Ordner wie das Video, damit die Spur als Sidecar daneben liegt.
+    expect(sub).toContain(`/downloads/video/${DEFAULT_TEMPLATE}.%(ext)s`)
   })
 })

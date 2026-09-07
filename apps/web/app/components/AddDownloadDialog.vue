@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { SUBTITLE_FORMATS } from '@fetcharr/shared'
 
-import { ADD_FORMATS, emptyDraft, toJobOptions, withLiveFromStart } from './add-download-options'
+import {
+  ADD_FORMATS,
+  draftWantsSubtitles,
+  emptyDraft,
+  toJobOptions,
+  withLiveFromStart,
+} from './add-download-options'
 
 interface ProbeResult {
   url: string
@@ -30,6 +36,7 @@ const recordFromStart = ref(false)
 
 const isLive = computed(() => probe.value?.isLive === true)
 const subtitlesOnly = computed(() => draft.value.format === 'subtitle')
+const showSubOptions = computed(() => draftWantsSubtitles(draft.value))
 
 /** Was der Job wirklich bekommt — inklusive `--live-from-start`, wenn gewählt. */
 const jobOptions = computed(() =>
@@ -161,8 +168,22 @@ async function addToQueue(): Promise<void> {
         <SegmentedControl v-model="draft.format" :options="ADD_FORMATS" />
       </div>
 
-      <div v-if="subtitlesOnly" class="subs">
-        <p class="subs-hint">No video or audio is downloaded — only the subtitle track.</p>
+      <label v-if="!subtitlesOnly" class="subs-toggle">
+        <input v-model="draft.withSubs" type="checkbox">
+        <span>
+          Also download subtitles
+          <em>Saves the subtitle track next to the media file as a sidecar.</em>
+        </span>
+      </label>
+
+      <div v-if="showSubOptions" class="subs">
+        <p v-if="subtitlesOnly" class="subs-hint">
+          No video or audio is downloaded — only the subtitle track.
+        </p>
+        <p v-else class="subs-hint">
+          Fetched in a second yt-dlp pass, because YouTube will not serve the media formats
+          and the caption tracks to the same client.
+        </p>
         <div class="subs-grid">
           <div class="field">
             <label for="sub-langs">Languages</label>
@@ -289,6 +310,13 @@ async function addToQueue(): Promise<void> {
 }
 
 .subs { display: flex; flex-direction: column; gap: 10px; }
+.subs-toggle { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; }
+.subs-toggle em {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--color-neutral-700);
+}
 .subs-hint { margin: 0; font-size: 12px; color: var(--color-neutral-700); }
 .subs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
 .subs-auto { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; }

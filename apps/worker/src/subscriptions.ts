@@ -80,6 +80,7 @@ export async function checkSubscription(
   )
   const jobs: Job[] = []
   let skipped = 0
+  let undated = 0
 
   for (const entry of entries) {
     const mediaId = entry.id?.trim()
@@ -97,9 +98,15 @@ export async function checkSubscription(
     }
 
     const date = entryDate(entry)
-    if (sub.timerangeFrom && date && date < sub.timerangeFrom) {
-      skipped += 1
-      continue
+    if (sub.timerangeFrom) {
+      if (date && date < sub.timerangeFrom) {
+        skipped += 1
+        continue
+      }
+      // Ohne Datum lieber laden als still verwerfen: ein Extractor, der grundsätzlich
+      // keine Daten liefert, würde die Subscription sonst komplett stumm schalten.
+      // Die Zusammenfassung unten macht sichtbar, wenn das passiert.
+      if (!date) undated += 1
     }
 
     const extractor = extractorFor(sub, entry)
@@ -121,6 +128,12 @@ export async function checkSubscription(
   }
 
   log(`subscription ${sub.name}: ${entries.length} entries, ${jobs.length} new`)
+  if (undated) {
+    log(
+      `subscription ${sub.name}: ${undated} entries without an upload date passed the ` +
+        `${sub.timerangeFrom ?? ''} filter unchecked`,
+    )
+  }
 
   if (jobs.length) {
     // Der Fund selbst ist die Nachricht — die Downloads melden sich später einzeln.
@@ -137,7 +150,18 @@ export async function fetchPlaylistEntries(
   sub: Subscription,
   options: { binary?: string; cookiesPath?: string | null; timeoutMs?: number } = {},
 ): Promise<PlaylistEntry[]> {
-  const args = ['-J', '--flat-playlist', '--ignore-errors', '--no-warnings']
+  const args = [
+    '-J',
+    '--flat-playlist',
+    '--ignore-errors',
+    '--no-warnings',
+    // Ohne das liefert --flat-playlist bei YouTube-Kanälen weder timestamp noch
+    // upload_date — jeder Eintrag käme datumslos an und `timerangeFrom` liefe ins
+    // Leere. Das Datum ist dann approximativ (YouTube meldet nur „vor 3 Wochen"),
+    // reicht für einen Ab-Datum-Filter aber aus. No-op für jeden anderen Extractor.
+    '--extractor-args',
+    'youtubetab:approximate_date',
+  ]
   if (options.cookiesPath) args.push('--cookies', options.cookiesPath)
 
   const { stdout, stderr, exitCode } = await execa(options.binary ?? ytdlpPath(), [...args, sub.url], {
@@ -199,11 +223,21 @@ function jobOptions(sub: Subscription, live: boolean): JobOptions {
     .filter(Boolean)
     .join(' ')
 
+  const format = mediaFormat(sub)
+  // Untertitel neben dem Video: withSubs greift nur, wenn überhaupt ein Medienstrom
+  // geladen wird — ein Untertitel-Abo holt die Spur ohnehin schon.
+  const wantsSubs = sub.withSubs && format !== 'subtitle'
+
   return {
-    format: mediaFormat(sub),
+    format,
     sponsorblock: sub.sponsorblock,
     ...(customArgs ? { customArgs } : {}),
     ...(sub.customOutput ? { outputTemplate: sub.customOutput } : {}),
+    ...(wantsSubs ? { withSubs: true } : {}),
+    ...((wantsSubs || format === 'subtitle') && sub.subLangs?.trim()
+      ? { subLangs: sub.subLangs.trim() }
+      : {}),
+    ...(wantsSubs || format === 'subtitle' ? { autoSubs: true } : {}),
     targetFolder: `subscriptions/${sanitizeFolder(sub.name)}`,
   }
 }

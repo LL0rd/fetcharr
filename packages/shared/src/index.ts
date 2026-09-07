@@ -1,6 +1,13 @@
 export { JobOptionsSchema, SUBTITLE_FORMATS } from './job-options.ts'
 export type { JobOptions } from './job-options.ts'
-export { DEFAULT_SUB_FORMAT, DEFAULT_SUB_LANGS, buildArgs, tokenizeArgs } from './args.ts'
+export {
+  DEFAULT_SUB_FORMAT,
+  DEFAULT_SUB_LANGS,
+  buildArgs,
+  buildSubtitleArgs,
+  needsSubtitlePass,
+  tokenizeArgs,
+} from './args.ts'
 export type { ArgsJob, ArgsPaths, GlobalSettings, MediaKind } from './args.ts'
 export {
   FORMATS,

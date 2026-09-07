@@ -95,6 +95,28 @@ export function tokenizeArgs(input: string): string[] {
  * Baut die yt-dlp-Argumentliste für einen Job. Pur: kein fs-, env- oder Netzzugriff —
  * der Cookies-Pfad wird als bereits geprüftes Ergebnis hereingereicht.
  */
+/**
+ * Untertitel neben dem Video sind ein ZWEITER yt-dlp-Lauf, kein zusätzliches Flag:
+ * die Formate brauchen den Client-Pin, die Caption-Tracks vertragen ihn nicht (siehe
+ * YOUTUBE_CLIENT_ARGS). Ein Aufruf kann nur eines von beidem.
+ */
+export function needsSubtitlePass(options: JobOptions): boolean {
+  return options.withSubs === true && options.format !== 'subtitle'
+}
+
+/**
+ * Die Argumente des zweiten Laufs: derselbe Job, nur als Untertitel-Job gelesen.
+ * `job.type` bleibt unangetastet, damit die Spur im Ordner des Videos landet und
+ * dort als Sidecar neben ihm liegt.
+ */
+export function buildSubtitleArgs(
+  job: ArgsJob,
+  settings: GlobalSettings,
+  paths: ArgsPaths,
+): string[] {
+  return buildArgs({ ...job, options: { ...job.options, format: 'subtitle' } }, settings, paths)
+}
+
 export function buildArgs(job: ArgsJob, settings: GlobalSettings, paths: ArgsPaths): string[] {
   const { options } = job
   const args: string[] = [...FORMAT_ARGS[options.format]]

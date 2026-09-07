@@ -1,3 +1,7 @@
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   addArchiveEntry,
@@ -14,6 +18,7 @@ import {
 import {
   checkSubscription,
   extractorFromUrl,
+  fetchPlaylistEntries,
   parsePlaylistJson,
   type PlaylistEntry,
 } from '../src/subscriptions.ts'
@@ -143,6 +148,35 @@ describe('checkSubscription', () => {
     expect(listJobs(db)[0]?.url).toContain('neu')
   })
 
+  it('lässt Einträge ohne Datum durch, statt sie stillschweigend zu verwerfen', async () => {
+    const messages: string[] = []
+    const result = await checkSubscription({
+      db,
+      sub: sub({ timerangeFrom: '20260810' }),
+      fetchEntries: () =>
+        Promise.resolve([entry({ id: 'ohne', upload_date: null, timestamp: null })]),
+      now: () => NOW,
+      log: (message) => messages.push(message),
+    })
+
+    expect(result.created).toBe(1)
+    expect(messages.some((line) => line.includes('without an upload date'))).toBe(true)
+  })
+
+  it('gibt withSubs und die Sprachen an den Job weiter', async () => {
+    await check(sub({ withSubs: true, subLangs: 'de,en' }), [entry()])
+
+    expect(listJobs(db)[0]?.options).toMatchObject({ withSubs: true, subLangs: 'de,en' })
+  })
+
+  it('setzt withSubs nicht für ein Untertitel-Abo', async () => {
+    await check(sub({ mediaType: 'subtitle', withSubs: true, subLangs: 'de' }), [entry()])
+
+    const options = listJobs(db)[0]?.options as Record<string, unknown>
+    expect(options).toMatchObject({ format: 'subtitle', subLangs: 'de' })
+    expect(options.withSubs).toBeUndefined()
+  })
+
   it('überspringt laufende Livestreams ohne recordLivestreams', async () => {
     const result = await check(sub(), [entry({ live_status: 'is_live' })])
 
@@ -247,5 +281,33 @@ describe('extractorFromUrl', () => {
   it('fällt auf den Host zurück', () => {
     expect(extractorFromUrl('https://vimeo.com/channels/x')).toBe('vimeo')
     expect(extractorFromUrl('kein-url')).toBe('generic')
+  })
+})
+
+describe('fetchPlaylistEntries', () => {
+  /**
+   * Regression: ohne `youtubetab:approximate_date` liefert `--flat-playlist` bei
+   * YouTube-Kanälen weder timestamp noch upload_date. Jeder Eintrag kam datumslos
+   * an, `timerangeFrom` verglich nie und die Subscription lud auch alles vor dem
+   * eingestellten Datum. Der Fehler lag damit im Abruf, nicht im Filter — deshalb
+   * hängt der Test an den echten yt-dlp-Argumenten.
+   */
+  it('fordert die approximativen Upload-Daten an', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'fetcharr-subs-'))
+    const binary = join(dir, 'fake-ytdlp.sh')
+    const argsFile = join(dir, 'args.txt')
+    writeFileSync(
+      binary,
+      `#!/usr/bin/env bash\nprintf '%s\\n' "$@" > ${argsFile}\necho '{"entries":[]}'\n`,
+    )
+    chmodSync(binary, 0o755)
+
+    await fetchPlaylistEntries(sub(), { binary })
+
+    const passed = readFileSync(argsFile, 'utf8').split('\n')
+    expect(passed).toContain('--extractor-args')
+    expect(passed).toContain('youtubetab:approximate_date')
+
+    rmSync(dir, { recursive: true, force: true })
   })
 })

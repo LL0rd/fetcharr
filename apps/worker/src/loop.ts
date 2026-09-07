@@ -115,6 +115,7 @@ export function startLoop(options: LoopOptions): WorkerLoop {
       downloadsDir,
       settings: options.settings ?? readGlobalSettings(db),
       cookiesPath: cookiesPath(options.configDir),
+      log,
       onInfo: (info) => setJobMeta(db, job.uid, { title: info.title, uploader: info.uploader }),
       onProgress: (update) => {
         if (throttle()) updateProgress(db, job.uid, update)

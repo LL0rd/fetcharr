@@ -1,4 +1,12 @@
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
@@ -170,5 +178,63 @@ describe('runDownload — subtitle only', () => {
     expect(result.status).toBe('failed')
     if (result.status !== 'failed') return
     expect(result.stderr).toContain('no subtitle file')
+  })
+})
+
+describe('runDownload — video with subtitles', () => {
+  const comboJob: RunnerJob = {
+    ...job,
+    uid: 'job-combo',
+    type: 'video',
+    options: { format: 'best', sponsorblock: 'off', withSubs: true, subLangs: 'de,en' },
+  }
+
+  it('keeps the video as the library file and the subtitle as a sidecar', async () => {
+    const handle = runDownload({ job: comboJob, downloadsDir, binary: FAKE_YTDLP })
+    const result = await handle.result
+
+    expect(result.status).toBe('finished')
+    if (result.status !== 'finished') return
+
+    const folder = join(downloadsDir, 'video', 'Test Channel')
+    expect(result.path).toBe(join(folder, 'Test Video [abc123].mp4'))
+    expect(existsSync(join(folder, 'Test Video [abc123].de.srt'))).toBe(true)
+    expect(existsSync(join(folder, 'Test Video [abc123].en.srt'))).toBe(true)
+  })
+
+  it('runs no second pass when withSubs is off', async () => {
+    const handle = runDownload({
+      job: { ...comboJob, options: { format: 'best', sponsorblock: 'off' } },
+      downloadsDir,
+      binary: FAKE_YTDLP,
+    })
+    await handle.result
+
+    const folder = join(downloadsDir, 'video', 'Test Channel')
+    expect(readdirSync(folder).some((name) => name.endsWith('.srt'))).toBe(false)
+  })
+
+  /** Nicht jedes Video hat Untertitel — das darf den fertigen Download nicht kippen. */
+  it('keeps the finished video when the subtitle pass fails', async () => {
+    const failing = join(downloadsDir, 'fail-on-subs.sh')
+    writeFileSync(
+      failing,
+      `#!/usr/bin/env bash\nfor a in "$@"; do [ "$a" = "--skip-download" ] && exit 1; done\nexec ${FAKE_YTDLP} "$@"\n`,
+    )
+    chmodSync(failing, 0o755)
+
+    const messages: string[] = []
+    const handle = runDownload({
+      job: comboJob,
+      downloadsDir,
+      binary: failing,
+      log: (message) => messages.push(message),
+    })
+    const result = await handle.result
+
+    expect(result.status).toBe('finished')
+    if (result.status !== 'finished') return
+    expect(result.path.endsWith('.mp4')).toBe(true)
+    expect(messages.some((line) => line.includes('subtitle pass'))).toBe(true)
   })
 })

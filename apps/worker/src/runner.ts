@@ -5,6 +5,8 @@ import type { Readable } from 'node:stream'
 
 import {
   buildArgs,
+  buildSubtitleArgs,
+  needsSubtitlePass,
   type ArgsPaths,
   type GlobalSettings,
   type JobOptions,
@@ -51,6 +53,7 @@ export interface RunDownloadOptions {
   env?: Record<string, string>
   onInfo?: (info: InfoResult) => void
   onProgress?: (update: ProgressUpdate) => void
+  log?: (message: string) => void
 }
 
 export interface DownloadHandle {
@@ -87,28 +90,55 @@ export function runDownload(options: RunDownloadOptions): DownloadHandle {
   const { job, downloadsDir } = options
   const tmpRoot = join(downloadsDir, '.tmp', job.uid)
 
-  const args = buildArgs({ type: job.type, options: job.options }, options.settings ?? {}, {
-    downloadsDir: tmpRoot,
-    cookiesPath: options.cookiesPath ?? null,
-  })
-
-  const child = execa(options.binary ?? ytdlpPath(), [...args, job.url], {
-    buffer: false,
-    reject: false,
-    env: options.env,
-  })
+  const settings = options.settings ?? {}
+  const argsPaths = { downloadsDir: tmpRoot, cookiesPath: options.cookiesPath ?? null }
+  const args = buildArgs({ type: job.type, options: job.options }, settings, argsPaths)
 
   let aborted = false
   const stderrChunks: string[] = []
 
-  readLines(child.stdout, (line) => {
-    if (!consumeInfoLine(line, options.onInfo)) consumeProgressLine(line, options.onProgress)
-  })
-  readLines(child.stderr, (line) => {
-    if (!consumeProgressLine(line, options.onProgress)) stderrChunks.push(line)
-  })
+  function spawn(spawnArgs: string[], onProgress: RunDownloadOptions['onProgress']): Child {
+    const child = execa(options.binary ?? ytdlpPath(), [...spawnArgs, job.url], {
+      buffer: false,
+      reject: false,
+      env: options.env,
+    })
 
-  const result = finalize(child, tmpRoot, downloadsDir, job.type, stderrChunks, () => aborted)
+    readLines(child.stdout, (line) => {
+      if (!consumeInfoLine(line, options.onInfo)) consumeProgressLine(line, onProgress)
+    })
+    readLines(child.stderr, (line) => {
+      if (!consumeProgressLine(line, onProgress)) stderrChunks.push(line)
+    })
+    return child
+  }
+
+  const child = spawn(args, options.onProgress)
+  // abort() muss den gerade laufenden Prozess treffen, nicht immer den ersten.
+  let active = child
+
+  const result = finalize({
+    child,
+    runSubtitlePass: needsSubtitlePass(job.options)
+      ? async () => {
+          const subArgs = buildSubtitleArgs(
+            { type: job.type, options: job.options },
+            settings,
+            argsPaths,
+          )
+          // Kein onProgress: der zweite Lauf würde den Balken des fertigen
+          // Videos wieder bei 0 % anfangen lassen.
+          active = spawn(subArgs, undefined)
+          return active
+        }
+      : null,
+    tmpRoot,
+    downloadsDir,
+    type: job.type,
+    stderrChunks,
+    wasAborted: () => aborted,
+    log: options.log ?? (() => {}),
+  })
 
   return {
     get pid() {
@@ -116,27 +146,49 @@ export function runDownload(options: RunDownloadOptions): DownloadHandle {
     },
     abort() {
       aborted = true
-      if (child.pid) treeKill(child.pid, 'SIGKILL')
+      if (active.pid) treeKill(active.pid, 'SIGKILL')
     },
     result,
   }
 }
 
-async function finalize(
-  child: ResultPromise<{ buffer: false; reject: false }>,
-  tmpRoot: string,
-  downloadsDir: string,
-  type: MediaKind,
-  stderrChunks: string[],
-  wasAborted: () => boolean,
-): Promise<DownloadResult> {
+type Child = ResultPromise<{ buffer: false; reject: false }>
+
+interface FinalizeOptions {
+  child: Child
+  /** Zweiter Lauf für die Untertitelspur; `null`, wenn keiner gebraucht wird. */
+  runSubtitlePass: (() => Promise<Child>) | null
+  tmpRoot: string
+  downloadsDir: string
+  type: MediaKind
+  stderrChunks: string[]
+  wasAborted: () => boolean
+  log: (message: string) => void
+}
+
+async function finalize(options: FinalizeOptions): Promise<DownloadResult> {
+  const { tmpRoot, downloadsDir, type, stderrChunks, wasAborted, log } = options
   try {
-    const outcome = await child
+    const outcome = await options.child
     const stderr = stderrChunks.join('\n')
 
     if (wasAborted()) return { status: 'cancelled', stderr }
     if (outcome.exitCode !== 0) {
       return { status: 'failed', stderr, exitCode: outcome.exitCode ?? null }
+    }
+
+    if (options.runSubtitlePass && !wasAborted()) {
+      // Eine fehlende Untertitelspur darf ein fertiges Video nie zu einem Fehler
+      // machen — nicht jedes Video hat überhaupt welche.
+      try {
+        const subtitles = await (await options.runSubtitlePass())
+        if (subtitles.exitCode !== 0) {
+          log(`subtitle pass exited with ${String(subtitles.exitCode)} — keeping the media file`)
+        }
+      } catch (error) {
+        log(`subtitle pass failed: ${error instanceof Error ? error.message : String(error)}`)
+      }
+      if (wasAborted()) return { status: 'cancelled', stderr: stderrChunks.join('\n') }
     }
 
     return await collectAndMove(tmpRoot, downloadsDir, type)
@@ -203,8 +255,10 @@ async function collectAndMove(
  * ehrlichen Fehlers.
  */
 function pickMedia(candidates: string[], type: MediaKind): string | null {
-  if (type !== 'subtitle') return candidates[0] ?? null
-  return candidates.find((path) => isSubtitle(path)) ?? null
+  if (type === 'subtitle') return candidates.find((path) => isSubtitle(path)) ?? null
+  // Bei withSubs liegt die Spur mit im Staging-Baum und sortiert je nach Titel auch
+  // vor die Mediendatei — sie ist hier Beiwerk, nie die Hauptdatei.
+  return candidates.find((path) => !isSubtitle(path)) ?? null
 }
 
 function isSubtitle(path: string): boolean {

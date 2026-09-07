@@ -25,6 +25,8 @@ export interface CreateSubscriptionInput {
   customArgs?: string | null
   customOutput?: string | null
   sponsorblock?: Sponsorblock
+  withSubs?: boolean
+  subLangs?: string | null
   recordLivestreams?: boolean
   redownloadFreshUploads?: boolean
   rssEnabled?: boolean
@@ -60,6 +62,8 @@ const UPDATABLE: Record<keyof UpdateSubscriptionInput, string> = {
   customArgs: 'custom_args',
   customOutput: 'custom_output',
   sponsorblock: 'sponsorblock',
+  withSubs: 'with_subs',
+  subLangs: 'sub_langs',
   recordLivestreams: 'record_livestreams',
   redownloadFreshUploads: 'redownload_fresh_uploads',
   rssEnabled: 'rss_enabled',
@@ -70,9 +74,10 @@ export function createSubscription(db: Db, input: CreateSubscriptionInput): Subs
     .prepare(
       `INSERT INTO subscriptions (id, url, name, type, media_type, cron, paused, timerange_from,
                                   title_regex, max_quality, custom_args, custom_output, sponsorblock,
+                                  with_subs, sub_langs,
                                   record_livestreams, redownload_fresh_uploads, rss_enabled,
                                   checking, check_requested, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, unixepoch(), unixepoch())
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, unixepoch(), unixepoch())
        RETURNING *`,
     )
     .get(
@@ -89,6 +94,8 @@ export function createSubscription(db: Db, input: CreateSubscriptionInput): Subs
       input.customArgs ?? null,
       input.customOutput ?? null,
       input.sponsorblock ?? 'off',
+      bool(input.withSubs),
+      input.subLangs ?? null,
       bool(input.recordLivestreams),
       bool(input.redownloadFreshUploads),
       bool(input.rssEnabled),
@@ -261,6 +268,8 @@ function mapRow(row: Row | undefined): Subscription | null {
     customArgs: (row.custom_args as string | null) ?? null,
     customOutput: (row.custom_output as string | null) ?? null,
     sponsorblock: row.sponsorblock as Sponsorblock,
+    withSubs: Boolean(row.with_subs),
+    subLangs: (row.sub_langs as string | null) ?? null,
     recordLivestreams: Boolean(row.record_livestreams),
     redownloadFreshUploads: Boolean(row.redownload_fresh_uploads),
     rssEnabled: Boolean(row.rss_enabled),
