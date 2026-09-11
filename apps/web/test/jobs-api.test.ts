@@ -21,6 +21,7 @@ beforeEach(async () => {
     list: (await import('../server/api/jobs/index.get.ts')).default as Handler,
     create: (await import('../server/api/jobs/index.post.ts')).default as Handler,
     clearFinished: (await import('../server/api/jobs/clear-finished.post.ts')).default as Handler,
+    clearQueue: (await import('../server/api/jobs/clear-queue.post.ts')).default as Handler,
     cancel: (await import('../server/api/jobs/[uid]/cancel.post.ts')).default as Handler,
     retry: (await import('../server/api/jobs/[uid]/retry.post.ts')).default as Handler,
     pause: (await import('../server/api/jobs/[uid]/pause.post.ts')).default as Handler,
@@ -212,6 +213,32 @@ describe('POST /api/jobs/:uid/pause and resume', () => {
 
     const error = await expectHttpError(handlers.resume({ params: { uid: created.uid } }))
     expect(error.statusCode).toBe(409)
+  })
+})
+
+describe('POST /api/jobs/clear-queue', () => {
+  it('removes queued, paused and running jobs but keeps the finished ones', async () => {
+    const kept: string[] = []
+    for (const status of ['finished', 'errored']) {
+      const job = await createJobViaApi()
+      setStatus(job.uid, status)
+      kept.push(job.uid)
+    }
+    for (const status of ['queued', 'paused', 'running']) {
+      const job = await createJobViaApi()
+      setStatus(job.uid, status)
+    }
+
+    const { removed } = await handlers.clearQueue({})
+    const { jobs } = await handlers.list({})
+
+    expect(removed).toBe(3)
+    expect(jobs.map((job: any) => job.uid).sort()).toEqual(kept.sort())
+  })
+
+  it('reports nothing removed on an empty queue', async () => {
+    const { removed } = await handlers.clearQueue({})
+    expect(removed).toBe(0)
   })
 })
 

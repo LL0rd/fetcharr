@@ -50,6 +50,38 @@ async function togglePauseAll(): Promise<void> {
   }
 }
 
+/** Wie viele Zeilen „Clear queue" treffen würde — der Knopf nennt die Zahl. */
+const pendingCount = computed(
+  () => jobs.value.filter((job) => job.status !== 'finished' && job.status !== 'errored'
+    && job.status !== 'cancelled').length,
+)
+const runningCount = computed(() => jobs.value.filter((job) => job.status === 'running').length)
+const confirmClear = ref(false)
+
+const clearBody = computed(() => {
+  const jobWord = pendingCount.value === 1 ? 'job' : 'jobs'
+  const running = runningCount.value
+    ? ` The ${runningCount.value === 1 ? 'running download is' : `${runningCount.value} running downloads are`} stopped right away.`
+    : ''
+  return `Removes ${pendingCount.value} queued, paused and running ${jobWord}.${running}`
+    + ' Finished and errored jobs stay — use Clear finished for those.'
+})
+
+async function clearQueue(): Promise<void> {
+  busy.value = true
+  try {
+    await $fetch('/api/jobs/clear-queue', { method: 'POST' })
+    await refresh()
+  }
+  catch {
+    // Der nächste Stream-Tick bringt den echten Stand.
+  }
+  finally {
+    busy.value = false
+    confirmClear.value = false
+  }
+}
+
 async function clearFinished(): Promise<void> {
   busy.value = true
   try {
@@ -73,6 +105,14 @@ async function clearFinished(): Promise<void> {
       <div class="queue-head-actions">
         <button class="btn btn-secondary queue-btn" type="button" :disabled="busy" @click="togglePauseAll">
           {{ pauseAllLabel }}
+        </button>
+        <button
+          class="btn btn-secondary queue-btn"
+          type="button"
+          :disabled="busy || !pendingCount"
+          @click="confirmClear = true"
+        >
+          Clear queue
         </button>
         <button class="btn btn-secondary queue-btn" type="button" :disabled="busy" @click="clearFinished">
           Clear finished
@@ -111,6 +151,15 @@ async function clearFinished(): Promise<void> {
       Priority order: manual &gt; bulk &gt; subscription · failed jobs retry with exponential
       backoff · click a row for args &amp; stderr
     </div>
+    <LibraryConfirmDialog
+      v-if="confirmClear"
+      title="Clear queue?"
+      :body="clearBody"
+      confirm-label="Clear queue"
+      :busy="busy"
+      @confirm="clearQueue"
+      @cancel="confirmClear = false"
+    />
   </section>
 </template>
 

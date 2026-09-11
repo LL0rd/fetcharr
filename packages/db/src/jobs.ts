@@ -232,6 +232,20 @@ export function clearFinished(db: Db): number {
   return result.changes
 }
 
+/**
+ * Leert die Arbeitsliste: wartende, pausierte UND laufende Jobs fliegen raus.
+ * Fertige, fehlgeschlagene und abgebrochene bleiben stehen — dafür gibt es
+ * clearFinished. Die Zeile eines laufenden Jobs verschwindet sofort; der Worker
+ * erkennt das fehlende Zeile als Abbruchsignal und killt den yt-dlp-Prozess.
+ */
+export function clearQueue(db: Db): number {
+  const result = db.$client
+    .prepare("DELETE FROM jobs WHERE status IN ('queued', 'paused', 'running')")
+    .run()
+
+  return result.changes
+}
+
 export function getJob(db: Db, uid: string): Job | null {
   const row = db.$client.prepare('SELECT * FROM jobs WHERE uid = ?').get(uid) as Row | undefined
   return mapJobRow(row)

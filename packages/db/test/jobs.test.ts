@@ -11,6 +11,8 @@ import {
   retryJob,
   requeueRunning,
   clearFinished,
+  clearQueue,
+  pauseJob,
   getJob,
   listJobs,
 } from '../src/jobs.ts'
@@ -274,6 +276,33 @@ describe('clearFinished', () => {
 
     expect(clearFinished(db)).toBe(3)
     expect(listJobs(db).map((j) => j.uid).sort()).toEqual([running.uid, queued.uid].sort())
+  })
+})
+
+describe('clearQueue', () => {
+  it('deletes queued, paused and running jobs but keeps the finished ones', () => {
+    const finished = newJob({ url: 'https://example.com/finished' })
+    claimNextJob(db)
+    finishJob(db, finished.uid)
+
+    const errored = newJob({ url: 'https://example.com/errored', maxAttempts: 1 })
+    claimNextJob(db)
+    failJob(db, errored.uid, 'boom')
+
+    const running = newJob({ url: 'https://example.com/running' })
+    claimNextJob(db)
+    const queued = newJob({ url: 'https://example.com/queued' })
+    const paused = newJob({ url: 'https://example.com/paused' })
+    pauseJob(db, paused.uid)
+
+    expect(clearQueue(db)).toBe(3)
+    expect(listJobs(db).map((j) => j.uid).sort()).toEqual([finished.uid, errored.uid].sort())
+    expect(getJob(db, running.uid)).toBeNull()
+    expect(getJob(db, queued.uid)).toBeNull()
+  })
+
+  it('is a no-op on an empty queue', () => {
+    expect(clearQueue(db)).toBe(0)
   })
 })
 

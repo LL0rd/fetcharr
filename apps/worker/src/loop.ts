@@ -244,10 +244,15 @@ export function startLoop(options: LoopOptions): WorkerLoop {
     }
   }
 
-  /** Die API setzt `cancelled` nur in der DB — der Worker holt sich das Signal hier ab. */
+  /**
+   * Die API setzt `cancelled` nur in der DB — der Worker holt sich das Signal hier ab.
+   * Eine verschwundene Zeile zählt genauso: „Clear queue" löscht laufende Jobs direkt,
+   * und ohne diesen Fall liefe yt-dlp verwaist weiter.
+   */
   function checkCancelled(): void {
     for (const [uid, handle] of active) {
-      if (getJobStatus(db, uid) === 'cancelled') handle.abort()
+      const status = getJobStatus(db, uid)
+      if (status === 'cancelled' || status === null) handle.abort()
     }
   }
 

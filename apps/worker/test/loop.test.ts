@@ -425,6 +425,24 @@ describe('startLoop', () => {
     expect(getJob(db, job.uid)?.status).toBe('cancelled')
   })
 
+  /**
+   * „Clear queue" löscht die Zeile eines laufenden Jobs sofort. Ohne diesen Fall
+   * bliebe yt-dlp verwaist am Netz hängen und lüde in ein tmp-Verzeichnis, das
+   * niemand mehr abholt.
+   */
+  it('kills a running process once its job row is deleted', async () => {
+    const job = queue(db)
+    const runner = fakeRunner()
+
+    loop = startLoop({ db, downloadsDir: '/downloads', run: runner.run, ...FAST })
+    await waitFor(() => runner.runs.length === 1)
+
+    db.$client.prepare('DELETE FROM jobs WHERE uid = ?').run(job.uid)
+
+    await waitFor(() => runner.runs[0]!.aborted)
+    expect(getJob(db, job.uid)).toBeNull()
+  })
+
   it('kills running processes and requeues their jobs on shutdown', async () => {
     const job = queue(db)
     const runner = fakeRunner()
