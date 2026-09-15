@@ -38,6 +38,31 @@ const SORT_COLUMNS: Record<FileSort, string> = {
   size: 'size_bytes',
 }
 
+/**
+ * Alle Spalten AUSSER info_json. Das Feld hält yt-dlps komplette Metadaten —
+ * auf einer echten Instanz im Schnitt 64 KB, im Extremfall 5 MB pro Datei — und
+ * niemand liest es: weder die Mediathek noch der Worker. Mit `SELECT *` lud eine
+ * Bibliotheksseite dadurch 3,5 MB statt 22 KB und brauchte dafür knapp eine
+ * Sekunde. Einzelabrufe (getFile) dürfen weiter alles holen.
+ */
+const LIST_COLUMNS = [
+  'uid',
+  'url',
+  'title',
+  'uploader',
+  'type',
+  'path',
+  'size_bytes',
+  'duration_sec',
+  'thumbnail_path',
+  'upload_date',
+  'favorite',
+  'view_count',
+  'resume_position_sec',
+  'sub_id',
+  'created_at',
+].join(', ')
+
 export const DEFAULT_LIMIT = 50
 export const MAX_LIMIT = 200
 
@@ -50,7 +75,7 @@ export function listFiles(db: Db, options: ListFilesOptions = {}): ListFilesResu
 
   const rows = db.$client
     .prepare(
-      `SELECT * FROM files ${where}
+      `SELECT ${LIST_COLUMNS} FROM files ${where}
        ORDER BY ${column} ${direction}, rowid ${direction}
        LIMIT ? OFFSET ?`,
     )
@@ -74,7 +99,10 @@ export function getFilesByUids(db: Db, uids: string[]): FileRow[] {
 
   const placeholders = uids.map(() => '?').join(', ')
   const rows = db.$client
-    .prepare(`SELECT * FROM files WHERE uid IN (${placeholders}) ORDER BY created_at DESC, rowid DESC`)
+    .prepare(
+      `SELECT ${LIST_COLUMNS} FROM files WHERE uid IN (${placeholders})
+       ORDER BY created_at DESC, rowid DESC`,
+    )
     .all(...uids) as Row[]
 
   return rows.map((row) => mapFileRow(row)!)
@@ -167,7 +195,8 @@ function mapFileRow(row: Row | undefined): FileRow | null {
     durationSec: (row.duration_sec as number | null) ?? null,
     thumbnailPath: (row.thumbnail_path as string | null) ?? null,
     uploadDate: (row.upload_date as string | null) ?? null,
-    infoJson: parseJson(row.info_json),
+    // Fehlt bei Listenabfragen (siehe LIST_COLUMNS) — dort ist das Feld schlicht nicht dabei.
+    infoJson: 'info_json' in row ? parseJson(row.info_json) : null,
     favorite: Boolean(row.favorite),
     viewCount: row.view_count as number,
     resumePositionSec: (row.resume_position_sec as number | null) ?? null,

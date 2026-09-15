@@ -68,13 +68,31 @@ describe('listFiles', () => {
     expect(result.files.map((f) => f.uid)).toEqual([newer, older])
   })
 
-  it('maps favorite to a boolean, created_at to a Date and info_json to an object', () => {
+  it('maps favorite to a boolean and created_at to a Date', () => {
     seed({ favorite: true, info: { id: 'abc' } })
 
     const [file] = listFiles(db).files
     expect(file!.favorite).toBe(true)
     expect(file!.createdAt).toBeInstanceOf(Date)
-    expect(file!.infoJson).toEqual({ id: 'abc' })
+  })
+
+  /**
+   * Regression: mit `SELECT *` hing an jeder Zeile yt-dlps komplettes Metadaten-
+   * JSON. Auf einer echten Instanz waren das 64 KB im Schnitt und 5 MB im
+   * Extremfall — eine Bibliotheksseite wurde so 3,5 MB gross statt 22 KB, obwohl
+   * weder Mediathek noch Worker das Feld je lesen.
+   */
+  it('leaves the bulky info_json out of list results', () => {
+    seed({ info: { id: 'abc', formats: Array.from({ length: 200 }, (_, i) => ({ id: i })) } })
+
+    const [file] = listFiles(db).files
+    expect(file!.infoJson).toBeNull()
+  })
+
+  it('still carries info_json on a single lookup', () => {
+    const uid = seed({ info: { id: 'abc' } })
+
+    expect(getFile(db, uid)!.infoJson).toEqual({ id: 'abc' })
   })
 
   it('searches case-insensitively in title and uploader', () => {
