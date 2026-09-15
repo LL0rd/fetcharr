@@ -2,7 +2,7 @@
 const { jobs, refresh } = useJobsStream()
 
 const expandedUid = ref<string | null>(null)
-const busy = ref(false)
+const { busy, error: actionError, run: runAction } = useQueueActions(refresh)
 
 // Der Add-Dialog sitzt im Layout; sein Zähler holt die frisch eingereihte Zeile.
 const queueReload = useState('queue-reload', () => 0)
@@ -38,16 +38,15 @@ async function togglePauseAll(): Promise<void> {
   const action = resumeMode.value ? 'resume' : 'pause'
   const targets = jobs.value.filter((job) => job.status === from).map((job) => job.uid)
 
-  busy.value = true
-  try {
-    await Promise.all(
-      targets.map((uid) => $fetch(`/api/jobs/${uid}/${action}`, { method: 'POST' }).catch(() => {})),
+  await runAction(pauseAllLabel.value, async () => {
+    const results = await Promise.allSettled(
+      targets.map((uid) =>
+        $fetch(`/api/jobs/${uid}/${action}`, { method: 'POST', timeout: ACTION_TIMEOUT_MS }),
+      ),
     )
-    await refresh()
-  }
-  finally {
-    busy.value = false
-  }
+    const failed = results.filter((result) => result.status === 'rejected').length
+    if (failed) throw new Error(`${failed} of ${targets.length} jobs did not respond`)
+  })
 }
 
 /** Wie viele Zeilen „Clear queue" treffen würde — der Knopf nennt die Zahl. */
@@ -68,32 +67,16 @@ const clearBody = computed(() => {
 })
 
 async function clearQueue(): Promise<void> {
-  busy.value = true
-  try {
-    await $fetch('/api/jobs/clear-queue', { method: 'POST' })
-    await refresh()
-  }
-  catch {
-    // Der nächste Stream-Tick bringt den echten Stand.
-  }
-  finally {
-    busy.value = false
-    confirmClear.value = false
-  }
+  confirmClear.value = false
+  await runAction('Clear queue', () =>
+    $fetch('/api/jobs/clear-queue', { method: 'POST', timeout: ACTION_TIMEOUT_MS }),
+  )
 }
 
 async function clearFinished(): Promise<void> {
-  busy.value = true
-  try {
-    await $fetch('/api/jobs/clear-finished', { method: 'POST' })
-    await refresh()
-  }
-  catch {
-    // Der nächste Stream-Tick bringt den echten Stand.
-  }
-  finally {
-    busy.value = false
-  }
+  await runAction('Clear finished', () =>
+    $fetch('/api/jobs/clear-finished', { method: 'POST', timeout: ACTION_TIMEOUT_MS }),
+  )
 }
 </script>
 
@@ -119,6 +102,11 @@ async function clearFinished(): Promise<void> {
         </button>
       </div>
     </div>
+
+    <p v-if="actionError" class="queue-error" role="alert">
+      {{ actionError }}
+      <button class="queue-error-close" type="button" aria-label="Dismiss" @click="actionError = ''">×</button>
+    </p>
 
     <div class="queue-table">
       <div class="queue-header">
@@ -167,6 +155,28 @@ async function clearFinished(): Promise<void> {
 .queue-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
 .queue-head h4 { margin: 0; }
 .queue-summary { font-size: 12px; color: var(--color-neutral-700); }
+.queue-error {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  background: var(--color-accent-100);
+  color: var(--color-accent-800);
+}
+.queue-error-close {
+  margin-left: auto;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
 .queue-head-actions { margin-left: auto; display: flex; gap: 8px; }
 .queue-btn { font-size: 12px; padding: 5px 12px; }
 
