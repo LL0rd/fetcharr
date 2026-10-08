@@ -3,6 +3,10 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
+import { pickProxy } from '@fetcharr/shared'
+
+import { readDownloadSettings } from './args-preview.post.ts'
+
 const run = promisify(execFile)
 
 /** Probe ist read-only und kurzlebig, darf also im Web-Prozess laufen. */
@@ -28,14 +32,20 @@ export default defineEventHandler(async (event) => {
   const url = typeof body.url === 'string' ? body.url.trim() : ''
   if (!url) throw createError({ statusCode: 400, statusMessage: 'url is required' })
 
-  return await probeUrl(url)
+  // Auch die Metadaten holt YouTube hinter der Bot-Sperre hervor — die Probe geht
+  // deshalb über denselben Proxy-Pool wie der Download.
+  const db = await useDb()
+  return await probeUrl(url, { proxy: pickProxy(readDownloadSettings(db).proxies, url, 0) })
 })
 
 /**
  * Fragt yt-dlp nach den Metadaten einer URL. Das Binary beschafft allein der
  * Worker — fehlt es noch, ist das kein Fehler des Aufrufers, sondern 503.
  */
-export async function probeUrl(url: string): Promise<ProbeResult> {
+export async function probeUrl(
+  url: string,
+  options: { proxy?: string | null } = {},
+): Promise<ProbeResult> {
   const binary = ytdlpPath()
   if (!existsSync(binary)) {
     throw createError({
@@ -46,7 +56,9 @@ export async function probeUrl(url: string): Promise<ProbeResult> {
 
   let stdout: string
   try {
-    ;({ stdout } = await run(binary, ['-J', '--flat-playlist', url], {
+    const args = ['-J', '--flat-playlist']
+    if (options.proxy) args.push('--proxy', options.proxy)
+    ;({ stdout } = await run(binary, [...args, url], {
       timeout: TIMEOUT_MS,
       maxBuffer: MAX_OUTPUT_BYTES,
     }))

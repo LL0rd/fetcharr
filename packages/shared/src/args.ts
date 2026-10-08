@@ -13,12 +13,19 @@ export interface GlobalSettings {
   outputTemplate?: string | null
   customArgs?: string | null
   rateLimit?: string | null
+  /** Bereits geparste Proxy-Liste (siehe proxy.ts); leer oder null = ohne Proxy. */
+  proxies?: string[] | null
 }
 
 export interface ArgsPaths {
   downloadsDir: string
   /** Ergebnis des Existenz-Checks auf <CONFIG_DIR>/cookies.txt — null, wenn keine Datei da ist. */
   cookiesPath?: string | null
+  /**
+   * Der für diesen Lauf gewählte Proxy (pickProxy), bereits aufgelöst. Leerer
+   * String oder null heißt ohne Proxy — buildArgs entscheidet hier nichts mehr.
+   */
+  proxy?: string | null
 }
 
 const DEFAULT_TEMPLATE = '%(uploader)s/%(title)s [%(id)s]'
@@ -136,6 +143,7 @@ export function buildArgs(job: ArgsJob, settings: GlobalSettings, paths: ArgsPat
   if (options.format !== 'subtitle') args.push(...YOUTUBE_CLIENT_ARGS)
 
   if (paths.cookiesPath) args.push('--cookies', paths.cookiesPath)
+  if (paths.proxy) args.push('--proxy', paths.proxy)
 
   const folder = options.targetFolder || job.type
   const template = options.outputTemplate || settings.outputTemplate || DEFAULT_TEMPLATE

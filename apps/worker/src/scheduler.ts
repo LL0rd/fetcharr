@@ -13,6 +13,9 @@ import {
 } from '@fetcharr/db'
 import { Cron } from 'croner'
 
+import { pickProxy } from '@fetcharr/shared'
+
+import { readGlobalSettings } from './store.ts'
 import { checkSubscription, fetchPlaylistEntries } from './subscriptions.ts'
 
 /**
@@ -56,7 +59,16 @@ export function startScheduler(options: SchedulerOptions): Scheduler {
         sub,
         log,
         fetchEntries: (entry) =>
-          fetchPlaylistEntries(entry, { cookiesPath: cookiesPath(options.configDir) }),
+          fetchPlaylistEntries(entry, {
+            cookiesPath: cookiesPath(options.configDir),
+            // Pro Abo fest, aber stündlich weitergeschaltet: ein Kanalabruf, den
+            // ein Proxy nicht schafft, landet beim nächsten Check auf dem nächsten.
+            proxy: pickProxy(
+              readGlobalSettings(db).proxies,
+              entry.id,
+              Math.floor(Date.now() / 3_600_000),
+            ),
+          }),
       }))
 
   const crons = new Map<string, Cron>()

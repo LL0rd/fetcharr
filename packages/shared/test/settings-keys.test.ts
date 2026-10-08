@@ -52,17 +52,30 @@ describe('SettingsPatchSchema', () => {
 })
 
 describe('toGlobalSettings', () => {
-  it('maps the three args-relevant keys', () => {
+  it('maps the args-relevant keys', () => {
     expect(
-      toGlobalSettings({ output_template: '%(title)s', custom_args: '--x', rate_limit: '2M' }),
-    ).toEqual({ outputTemplate: '%(title)s', customArgs: '--x', rateLimit: '2M' })
+      toGlobalSettings({
+        output_template: '%(title)s',
+        custom_args: '--x',
+        rate_limit: '2M',
+        proxies: 'http://a:3128\ndirect',
+      }),
+    ).toEqual({
+      outputTemplate: '%(title)s',
+      customArgs: '--x',
+      rateLimit: '2M',
+      proxies: ['http://a:3128', ''],
+    })
   })
 
   it('treats an emptied field as unset', () => {
-    expect(toGlobalSettings({ output_template: '', custom_args: '', rate_limit: '' })).toEqual({
+    expect(
+      toGlobalSettings({ output_template: '', custom_args: '', rate_limit: '', proxies: '' }),
+    ).toEqual({
       outputTemplate: null,
       customArgs: null,
       rateLimit: null,
+      proxies: [],
     })
   })
 })

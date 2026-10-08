@@ -37,6 +37,7 @@ export function readGlobalSettings(db: Db): GlobalSettings {
     output_template: asString(getSetting(db, SETTINGS_KEYS.outputTemplate)),
     rate_limit: asString(getSetting(db, SETTINGS_KEYS.rateLimit)),
     custom_args: asString(getSetting(db, SETTINGS_KEYS.customArgs)),
+    proxies: asString(getSetting(db, SETTINGS_KEYS.proxies)),
   })
 }
 

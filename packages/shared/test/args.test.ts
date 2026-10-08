@@ -306,3 +306,16 @@ describe('buildArgs — video with subtitles', () => {
     expect(sub).toContain(`/downloads/video/${DEFAULT_TEMPLATE}.%(ext)s`)
   })
 })
+
+describe('buildArgs — proxy', () => {
+  it('passes the resolved proxy through', () => {
+    const args = buildArgs(job({}), settings, { ...paths, proxy: 'http://u:p@proxy:3128' })
+    expect(args[args.indexOf('--proxy') + 1]).toBe('http://u:p@proxy:3128')
+  })
+
+  it('adds nothing for a direct slot or no proxy at all', () => {
+    expect(buildArgs(job({}), settings, { ...paths, proxy: '' })).not.toContain('--proxy')
+    expect(buildArgs(job({}), settings, { ...paths, proxy: null })).not.toContain('--proxy')
+    expect(buildArgs(job({}), settings, paths)).not.toContain('--proxy')
+  })
+})

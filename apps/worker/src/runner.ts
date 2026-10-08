@@ -50,6 +50,8 @@ export interface RunDownloadOptions {
   binary?: string
   settings?: GlobalSettings
   cookiesPath?: ArgsPaths['cookiesPath']
+  /** Der für diesen Versuch gewählte Proxy; der Worker wählt ihn pro Attempt neu. */
+  proxy?: ArgsPaths['proxy']
   env?: Record<string, string>
   onInfo?: (info: InfoResult) => void
   onProgress?: (update: ProgressUpdate) => void
@@ -91,7 +93,11 @@ export function runDownload(options: RunDownloadOptions): DownloadHandle {
   const tmpRoot = join(downloadsDir, '.tmp', job.uid)
 
   const settings = options.settings ?? {}
-  const argsPaths = { downloadsDir: tmpRoot, cookiesPath: options.cookiesPath ?? null }
+  const argsPaths: ArgsPaths = {
+    downloadsDir: tmpRoot,
+    cookiesPath: options.cookiesPath ?? null,
+    proxy: options.proxy ?? null,
+  }
   const args = buildArgs({ type: job.type, options: job.options }, settings, argsPaths)
 
   let aborted = false

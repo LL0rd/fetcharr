@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { JobOptionsSchema, buildArgs } from '@fetcharr/shared'
+import { JobOptionsSchema, buildArgs, maskProxy, parseProxyList, pickProxy } from '@fetcharr/shared'
 import type { ArgsJob, GlobalSettings } from '@fetcharr/shared'
 
 import { typeForFormat } from './jobs/index.post'
@@ -27,9 +27,14 @@ export default defineEventHandler(async (event) => {
   const job: ArgsJob = { type, options: parsed.data }
 
   const db = await useDb()
-  const args = buildArgs(job, readDownloadSettings(db), {
+  const settings = readDownloadSettings(db)
+  // Die Vorschau zeigt den ersten Versuch; Zugangsdaten im Proxy bleiben maskiert,
+  // denn diese Zeile landet im Browser und in Screenshots.
+  const proxy = pickProxy(settings.proxies, 'preview', 0)
+  const args = buildArgs(job, settings, {
     downloadsDir: process.env.DOWNLOADS_DIR ?? './data/downloads',
     cookiesPath: cookiesPath(),
+    proxy: proxy ? maskProxy(proxy) : proxy,
   })
 
   return { args, command: ['yt-dlp', ...args, body.url ?? '<url>'].join(' ') }
@@ -44,7 +49,7 @@ function cookiesPath(): string | null {
 export function readDownloadSettings(db: { $client: any }): GlobalSettings {
   const rows = db.$client
     .prepare(
-      "SELECT key, value FROM settings WHERE key IN ('output_template', 'custom_args', 'rate_limit')",
+      "SELECT key, value FROM settings WHERE key IN ('output_template', 'custom_args', 'rate_limit', 'proxies')",
     )
     .all() as { key: string; value: unknown }[]
 
@@ -54,6 +59,7 @@ export function readDownloadSettings(db: { $client: any }): GlobalSettings {
     outputTemplate: values.get('output_template') ?? null,
     customArgs: values.get('custom_args') ?? null,
     rateLimit: values.get('rate_limit') ?? null,
+    proxies: parseProxyList(values.get('proxies')),
   }
 }
 

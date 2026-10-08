@@ -295,6 +295,24 @@ describe('POST /api/args-preview', () => {
     expect(error.statusCode).toBe(400)
   })
 
+  /** Die Vorschau landet im Browser — Proxy-Zugangsdaten dürfen dort nicht auftauchen. */
+  it('shows the proxy with its credentials masked', async () => {
+    db.$client
+      .prepare('INSERT INTO settings (key, value) VALUES (?, ?)')
+      .run('proxies', JSON.stringify('http://user:s3cret@proxy.example:3128'))
+
+    const { args, command } = await handlers.argsPreview({ body: { options: { format: 'best' } } })
+
+    expect(args[args.indexOf('--proxy') + 1]).toBe('http://***@proxy.example:3128')
+    expect(command).toContain('--proxy http://***@proxy.example:3128')
+    expect(command).not.toContain('s3cret')
+  })
+
+  it('adds no proxy when the list is empty', async () => {
+    const { args } = await handlers.argsPreview({ body: { options: { format: 'best' } } })
+    expect(args).not.toContain('--proxy')
+  })
+
   it('derives the subtitle type from the format alone', async () => {
     process.env.DOWNLOADS_DIR = '/data/downloads'
 

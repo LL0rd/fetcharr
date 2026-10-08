@@ -140,6 +140,7 @@ describe('startLoop', () => {
       outputTemplate: '%(title)s',
       rateLimit: '2M',
       customArgs: '--no-part',
+      proxies: [],
     })
 
     const args = buildArgs({ type: job.type, options: job.options }, settings ?? {}, {
@@ -148,6 +149,37 @@ describe('startLoop', () => {
     expect(args[args.indexOf('-r') + 1]).toBe('2M')
     expect(args[args.indexOf('-o') + 1]).toBe('/downloads/video/%(title)s.%(ext)s')
     expect(args).toContain('--no-part')
+  })
+
+  /** Der Sinn der Liste: ein Proxy, der scheitert, wird beim Retry nicht wieder genommen. */
+  it('hands every attempt the next proxy of the list', async () => {
+    putSetting(db, SETTINGS_KEYS.proxies, 'http://p1:3128\nhttp://p2:3128\nhttp://p3:3128')
+    const job = queue(db)
+    const runner = fakeRunner()
+
+    loop = startLoop({ db, downloadsDir: '/downloads', run: runner.run, ...FAST })
+    await waitFor(() => runner.runs.length === 1)
+    const first = runner.runs[0]!.options.proxy
+    expect(['http://p1:3128', 'http://p2:3128', 'http://p3:3128']).toContain(first)
+
+    runner.runs[0]!.finish({ status: 'failed', stderr: '403', exitCode: 1 })
+    await waitFor(() => getJob(db, job.uid)?.attempts === 1)
+    db.$client.prepare('UPDATE jobs SET not_before = NULL WHERE uid = ?').run(job.uid)
+    await waitFor(() => runner.runs.length === 2)
+
+    const second = runner.runs[1]!.options.proxy
+    expect(second).not.toBe(first)
+    expect(['http://p1:3128', 'http://p2:3128', 'http://p3:3128']).toContain(second)
+  })
+
+  it('runs without a proxy when the list is empty', async () => {
+    queue(db)
+    const runner = fakeRunner()
+
+    loop = startLoop({ db, downloadsDir: '/downloads', run: runner.run, ...FAST })
+    await waitFor(() => runner.runs.length === 1)
+
+    expect(runner.runs[0]!.options.proxy).toBeNull()
   })
 
   it('picks up a settings change without a restart', async () => {

@@ -9,6 +9,7 @@ export {
   tokenizeArgs,
 } from './args.ts'
 export type { ArgsJob, ArgsPaths, GlobalSettings, MediaKind } from './args.ts'
+export { DIRECT, maskProxy, parseProxyList, pickProxy } from './proxy.ts'
 export {
   FORMATS,
   LOG_LEVELS,

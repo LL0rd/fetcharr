@@ -310,4 +310,24 @@ describe('fetchPlaylistEntries', () => {
 
     rmSync(dir, { recursive: true, force: true })
   })
+
+  it('routes the channel fetch through the given proxy', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'fetcharr-subs-'))
+    const binary = join(dir, 'fake-ytdlp.sh')
+    const argsFile = join(dir, 'args.txt')
+    writeFileSync(
+      binary,
+      `#!/usr/bin/env bash\nprintf '%s\\n' "$@" > ${argsFile}\necho '{"entries":[]}'\n`,
+    )
+    chmodSync(binary, 0o755)
+
+    await fetchPlaylistEntries(sub(), { binary, proxy: 'socks5://10.0.0.5:1080' })
+    const passed = readFileSync(argsFile, 'utf8').split('\n')
+    expect(passed[passed.indexOf('--proxy') + 1]).toBe('socks5://10.0.0.5:1080')
+
+    await fetchPlaylistEntries(sub(), { binary, proxy: '' })
+    expect(readFileSync(argsFile, 'utf8')).not.toContain('--proxy')
+
+    rmSync(dir, { recursive: true, force: true })
+  })
 })

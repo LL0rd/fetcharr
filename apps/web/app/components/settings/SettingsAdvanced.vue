@@ -21,6 +21,22 @@ const props = defineProps<{ draft: Settings }>()
     </div>
 
     <div class="field">
+      <label for="set-proxies">Proxies</label>
+      <textarea
+        id="set-proxies"
+        v-model="props.draft.proxies"
+        class="input mono proxies"
+        placeholder="http://user:pass@proxy-1.example:3128&#10;socks5://10.0.0.5:1080&#10;direct"
+      />
+      <span class="hint">
+        One per line. Jobs are spread across the list and every retry moves to the next
+        entry, so a proxy that gets a 403 is not hit again for the same video. Write
+        <code>direct</code> for a slot without a proxy. Used for downloads, subscription
+        checks and the URL probe. Leave empty to connect directly.
+      </span>
+    </div>
+
+    <div class="field">
       <label for="set-ua">Custom user agent</label>
       <input id="set-ua" v-model="props.draft.user_agent" class="input mono" placeholder="(default)">
     </div>
@@ -38,5 +54,7 @@ const props = defineProps<{ draft: Settings }>()
 <style scoped>
 .tab-panel { display: flex; flex-direction: column; gap: 14px; }
 .mono { font-family: ui-monospace, monospace; font-size: 12px; }
+.proxies { min-height: 88px; }
+.hint code { font-family: ui-monospace, monospace; }
 .hint { font-size: 11px; color: var(--color-neutral-700); }
 </style>

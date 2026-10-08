@@ -148,7 +148,13 @@ export async function checkSubscription(
 /** Ruft yt-dlp für die Subscription-URL auf; ein Fehler wird zum abgelehnten Promise. */
 export async function fetchPlaylistEntries(
   sub: Subscription,
-  options: { binary?: string; cookiesPath?: string | null; timeoutMs?: number } = {},
+  options: {
+    binary?: string
+    cookiesPath?: string | null
+    /** Bereits gewählter Proxy (pickProxy); leer/null = ohne. */
+    proxy?: string | null
+    timeoutMs?: number
+  } = {},
 ): Promise<PlaylistEntry[]> {
   const args = [
     '-J',
@@ -163,6 +169,7 @@ export async function fetchPlaylistEntries(
     'youtubetab:approximate_date',
   ]
   if (options.cookiesPath) args.push('--cookies', options.cookiesPath)
+  if (options.proxy) args.push('--proxy', options.proxy)
 
   const { stdout, stderr, exitCode } = await execa(options.binary ?? ytdlpPath(), [...args, sub.url], {
     timeout: options.timeoutMs ?? FETCH_TIMEOUT_MS,

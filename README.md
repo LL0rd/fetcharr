@@ -107,6 +107,23 @@ behind the **Subs** filter, and open as readable text instead of a player. Subsc
 `subtitle` as their media type too, which keeps a channel's subtitles in sync without storing a
 single video file.
 
+## Proxies
+
+Under *Settings → Advanced → Proxies* you can list one proxy per line, in yt-dlp's `--proxy`
+syntax:
+
+```
+http://user:pass@proxy-1.example:3128
+socks5://10.0.0.5:1080
+direct
+```
+
+Each job is assigned an entry from the list, and every retry moves on to the next one, so a proxy
+that answers with `403 Forbidden` or YouTube's "confirm you're not a bot" page is not hit again for
+the same video. `direct` is a slot without a proxy, which lets you mix your own connection into the
+rotation. The list is used for downloads, subscription checks and the URL probe in the add dialog;
+leave it empty to connect directly. Credentials never show up in the args preview or the logs.
+
 ## Project structure
 
 This is a pnpm workspace monorepo.

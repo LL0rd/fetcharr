@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import type { GlobalSettings } from './args.ts'
+import { parseProxyList } from './proxy.ts'
 
 /**
  * Das gemeinsame Vokabular der settings-Tabelle. Web schreibt, Worker liest —
@@ -29,6 +30,7 @@ export const SETTINGS_KEYS = {
   webhookUrl: 'webhook_url',
   notifyTypes: 'notify_types',
   customArgs: 'custom_args',
+  proxies: 'proxies',
   userAgent: 'user_agent',
   logLevel: 'log_level',
 } as const
@@ -71,6 +73,8 @@ export const SettingsSchema = z.object({
   notify_types: z.array(z.enum(NOTIFY_TYPES)),
 
   custom_args: z.string().max(2000),
+  /** Eine Zeile je Proxy-URL, `direct` für einen Slot ohne Proxy. */
+  proxies: z.string().max(4000),
   user_agent: z.string().max(300),
   log_level: z.enum(LOG_LEVELS),
 })
@@ -112,6 +116,7 @@ export const SETTINGS_DEFAULTS: Settings = {
   notify_types: ['download_finished', 'download_error', 'subscription_found', 'task_confirm'],
 
   custom_args: '',
+  proxies: '',
   user_agent: '',
   log_level: 'info',
 }
@@ -128,5 +133,6 @@ export function toGlobalSettings(values: Partial<Settings>): GlobalSettings {
     outputTemplate: values.output_template || null,
     customArgs: values.custom_args || null,
     rateLimit: values.rate_limit || null,
+    proxies: parseProxyList(values.proxies),
   }
 }

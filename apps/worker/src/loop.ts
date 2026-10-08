@@ -14,7 +14,13 @@ import {
   type Db,
   type Job,
 } from '@fetcharr/db'
-import { JobOptionsSchema, type GlobalSettings, type JobOptions } from '@fetcharr/shared'
+import {
+  JobOptionsSchema,
+  maskProxy,
+  pickProxy,
+  type GlobalSettings,
+  type JobOptions,
+} from '@fetcharr/shared'
 
 import {
   postProcess,
@@ -110,11 +116,16 @@ export function startLoop(options: LoopOptions): WorkerLoop {
     }
 
     const throttle = createThrottle(Date.now, progressThrottleMs)
+    const settings = options.settings ?? readGlobalSettings(db)
+    // Jeder Versuch nimmt den nächsten Proxy der Liste — ein 403 trifft so beim
+    // Retry nicht wieder dieselbe Adresse.
+    const proxy = pickProxy(settings.proxies, job.uid, job.attempts)
     const handle = run({
       job: { uid: job.uid, url: job.url, type: job.type, options: parsed.data },
       downloadsDir,
-      settings: options.settings ?? readGlobalSettings(db),
+      settings,
       cookiesPath: cookiesPath(options.configDir),
+      proxy,
       log,
       onInfo: (info) => setJobMeta(db, job.uid, { title: info.title, uploader: info.uploader }),
       onProgress: (update) => {
@@ -124,7 +135,7 @@ export function startLoop(options: LoopOptions): WorkerLoop {
 
     active.set(job.uid, handle)
     setJobMeta(db, job.uid, { pid: handle.pid ?? null })
-    log(`start ${job.uid} ${job.url}`)
+    log(`start ${job.uid} ${job.url}${proxy === null ? '' : ` via ${maskProxy(proxy)}`}`)
 
     handle.result
       .then((result) => complete(job, parsed.data, result))
