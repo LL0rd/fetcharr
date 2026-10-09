@@ -15,7 +15,38 @@ RUN chmod +x /usr/local/src/fetch-*.sh \
   && /usr/local/src/fetch-deno.sh
 
 # ---------------------------------------------------------------------------
-# Stage 2: Nuxt output and the bundled worker.
+# Stage 2: bgutil-ytdlp-pot-provider — the HTTP server that mints the
+# proof-of-origin tokens YouTube requires for media streams, plus the yt-dlp
+# plugin that talks to it. Server and plugin must be the same version.
+# ---------------------------------------------------------------------------
+FROM node:22-bookworm-slim AS pot
+
+ARG POT_PROVIDER_VERSION=2.0.2
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates curl \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /pot
+RUN set -eu; \
+  base="https://github.com/Brainicism/bgutil-ytdlp-pot-provider"; \
+  curl -fsSL --retry 5 --retry-delay 2 \
+    "${base}/archive/refs/tags/${POT_PROVIDER_VERSION}.tar.gz" \
+    | tar -xz --strip-components=2 "bgutil-ytdlp-pot-provider-${POT_PROVIDER_VERSION}/server"; \
+  mkdir -p /plugins; \
+  curl -fsSL --retry 5 --retry-delay 2 \
+    -o /plugins/bgutil-ytdlp-pot-provider.zip \
+    "${base}/releases/download/${POT_PROVIDER_VERSION}/bgutil-ytdlp-pot-provider.zip"
+
+# canvas ships prebuilt binaries for linux x64/arm64 (glibc); no toolchain needed.
+RUN npm ci --no-audit --no-fund \
+  && npx tsc \
+  && npm ci --omit=dev --no-audit --no-fund \
+  && npm cache clean --force \
+  && rm -rf src types tsconfig.json tsconfig.tsbuildinfo scripts eslint.config.mjs Dockerfile README.md deno.json deno.lock
+
+# ---------------------------------------------------------------------------
+# Stage 3: Nuxt output and the bundled worker.
 # ---------------------------------------------------------------------------
 FROM node:22-bookworm-slim AS build
 
@@ -54,7 +85,7 @@ RUN mkdir -p /prod/worker/node_modules \
   && cp -R packages/db/migrations /prod/migrations
 
 # ---------------------------------------------------------------------------
-# Stage 3: runtime — s6 supervises the Nuxt server and the worker.
+# Stage 4: runtime — s6 supervises the Nuxt server, the worker and the POT provider.
 # ---------------------------------------------------------------------------
 FROM node:22-bookworm-slim AS runtime
 
@@ -99,10 +130,15 @@ RUN groupadd -g 911 abc \
 
 COPY --from=utils /out/ /usr/local/bin/
 COPY --from=build /prod/ /app/
+COPY --from=pot /pot/ /app/pot/
+# /etc/yt-dlp/plugins is a system-wide plugin root that the PyInstaller builds
+# of yt-dlp scan too, so every yt-dlp call in the container picks it up.
+COPY --from=pot /plugins/ /etc/yt-dlp/plugins/
 COPY docker/root/ /
 RUN chmod +x /etc/s6-overlay/scripts/init-fetcharr \
   /etc/s6-overlay/s6-rc.d/web/run \
-  /etc/s6-overlay/s6-rc.d/worker/run
+  /etc/s6-overlay/s6-rc.d/worker/run \
+  /etc/s6-overlay/s6-rc.d/pot/run
 
 ENV NODE_ENV=production \
   CONFIG_DIR=/config \

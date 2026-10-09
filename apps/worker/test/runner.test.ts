@@ -238,3 +238,51 @@ describe('runDownload — video with subtitles', () => {
     expect(messages.some((line) => line.includes('subtitle pass'))).toBe(true)
   })
 })
+
+describe('age-restricted videos', () => {
+  it('retries once with the embed clients and keeps the result', async () => {
+    const argsLog = join(downloadsDir, 'args.log')
+    const handle = runDownload({
+      job,
+      downloadsDir,
+      binary: FAKE_YTDLP,
+      env: { FAKE_AGE_GATE: '1', FAKE_ARGS_LOG: argsLog },
+    })
+    const result = await handle.result
+
+    expect(result.status).toBe('finished')
+    const calls = readFileSync(argsLog, 'utf8').trim().split('\n')
+    expect(calls).toHaveLength(2)
+    expect(calls[0]).toContain('youtube:player_client=web_safari,mweb')
+    expect(calls[1]).toContain('youtube:player_client=tv_embedded,web_embedded')
+    expect(calls[1]).not.toContain('web_safari')
+  })
+
+  it('reports the original age gate error when the embed clients fail too', async () => {
+    const argsLog = join(downloadsDir, 'args.log')
+    const handle = runDownload({
+      job,
+      downloadsDir,
+      binary: FAKE_YTDLP,
+      env: { FAKE_AGE_GATE: '1', FAKE_FAIL: '1', FAKE_ARGS_LOG: argsLog },
+    })
+    const result = await handle.result
+
+    expect(result.status).toBe('failed')
+    if (result.status === 'failed') expect(result.stderr).toMatch(/confirm your age/)
+    expect(readFileSync(argsLog, 'utf8').trim().split('\n')).toHaveLength(2)
+  })
+
+  it('does not retry an ordinary failure', async () => {
+    const argsLog = join(downloadsDir, 'args.log')
+    const handle = runDownload({
+      job,
+      downloadsDir,
+      binary: FAKE_YTDLP,
+      env: { FAKE_FAIL: '1', FAKE_ARGS_LOG: argsLog },
+    })
+    await handle.result
+
+    expect(readFileSync(argsLog, 'utf8').trim().split('\n')).toHaveLength(1)
+  })
+})

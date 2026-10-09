@@ -6,6 +6,7 @@ import { createDb, requeueRunning, resetStuckTasks, seedTasks } from '@fetcharr/
 import { startLoop } from './loop.ts'
 import { startScheduler } from './scheduler.ts'
 import { startTaskEngine } from './tasks/engine.ts'
+import { describePotProvider, potProviderStatus } from './pot.ts'
 import { ensureYtdlp, getVersion } from './ytdlp.ts'
 
 const configDir = process.env.CONFIG_DIR ?? './data/config'
@@ -27,6 +28,7 @@ async function main(): Promise<void> {
 
   await ensureYtdlp()
   log(`yt-dlp ${await getVersion()}`)
+  log(describePotProvider(await potProviderStatus()))
 
   const loop = startLoop({ db, downloadsDir, configDir, log })
   log(`polling ${downloadsDir}`)

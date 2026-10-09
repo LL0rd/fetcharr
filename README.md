@@ -124,6 +124,30 @@ the same video. `direct` is a slot without a proxy, which lets you mix your own 
 rotation. The list is used for downloads, subscription checks and the URL probe in the add dialog;
 leave it empty to connect directly. Credentials never show up in the args preview or the logs.
 
+## YouTube PO tokens
+
+YouTube only serves its media streams to clients that present a proof-of-origin token (PO token).
+Without one every download ends in `HTTP Error 403: Forbidden`, no matter which player client, proxy
+or IP address is used. yt-dlp cannot mint these tokens itself, so the image ships
+[bgutil-ytdlp-pot-provider](https://github.com/Brainicism/bgutil-ytdlp-pot-provider): its token
+server runs as a third s6 service next to the web server and the worker, bound to `127.0.0.1:4416`,
+and the matching yt-dlp plugin sits under `/etc/yt-dlp/plugins/`. Nothing needs to be configured;
+every yt-dlp call in the container — downloads, subscription checks, the URL probe — picks the plugin
+up automatically, and the worker logs `PO token provider 2.0.2 ready` on start. If the server is not
+reachable the worker says so and downloads run without tokens, exactly as before.
+
+The provider honours the proxy a job was assigned, so a token is generated through the same
+connection the video is fetched over. Tokens are cached in the server; a container restart clears
+the cache.
+
+### Age-restricted videos
+
+Age-restricted videos need a signed-in YouTube account, which means a `cookies.txt`. Without one the
+worker tries a single fallback: when yt-dlp reports *Sign in to confirm your age*, the job is run a
+second time with the `tv_embedded,web_embedded` player clients, which still serve videos whose
+uploader allows embedding. If that fails too, the job is marked as errored with the original message
+and cookies are the only remaining option.
+
 ## Project structure
 
 This is a pnpm workspace monorepo.

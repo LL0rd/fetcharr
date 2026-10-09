@@ -6,6 +6,8 @@ import type { Readable } from 'node:stream'
 import {
   buildArgs,
   buildSubtitleArgs,
+  isAgeRestricted,
+  withAgeGateClients,
   needsSubtitlePass,
   type ArgsPaths,
   type GlobalSettings,
@@ -125,6 +127,12 @@ export function runDownload(options: RunDownloadOptions): DownloadHandle {
 
   const result = finalize({
     child,
+    // Altersabfrage: ein zweiter Lauf mit den Embed-Clients statt des Pins —
+    // ohne Cookies der einzige Weg an einbettbare altersbeschränkte Videos.
+    runAgeGatePass: () => {
+      active = spawn(withAgeGateClients(args), options.onProgress)
+      return active
+    },
     runSubtitlePass: needsSubtitlePass(job.options)
       ? async () => {
           const subArgs = buildSubtitleArgs(
@@ -162,6 +170,8 @@ type Child = ResultPromise<{ buffer: false; reject: false }>
 
 interface FinalizeOptions {
   child: Child
+  /** Wiederholung mit den Embed-Clients, wenn der erste Lauf an der Altersabfrage scheitert. */
+  runAgeGatePass: () => Child
   /** Zweiter Lauf für die Untertitelspur; `null`, wenn keiner gebraucht wird. */
   runSubtitlePass: (() => Promise<Child>) | null
   tmpRoot: string
@@ -175,12 +185,17 @@ interface FinalizeOptions {
 async function finalize(options: FinalizeOptions): Promise<DownloadResult> {
   const { tmpRoot, downloadsDir, type, stderrChunks, wasAborted, log } = options
   try {
-    const outcome = await options.child
-    const stderr = stderrChunks.join('\n')
+    let outcome = await options.child
+    if (wasAborted()) return { status: 'cancelled', stderr: stderrChunks.join('\n') }
 
-    if (wasAborted()) return { status: 'cancelled', stderr }
+    if (outcome.exitCode !== 0 && isAgeRestricted(stderrChunks.join('\n'))) {
+      log('age-restricted — retrying with the embed clients')
+      outcome = await options.runAgeGatePass()
+      if (wasAborted()) return { status: 'cancelled', stderr: stderrChunks.join('\n') }
+    }
+
     if (outcome.exitCode !== 0) {
-      return { status: 'failed', stderr, exitCode: outcome.exitCode ?? null }
+      return { status: 'failed', stderr: stderrChunks.join('\n'), exitCode: outcome.exitCode ?? null }
     }
 
     if (options.runSubtitlePass && !wasAborted()) {

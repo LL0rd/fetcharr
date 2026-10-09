@@ -1,0 +1,8 @@
+#!/command/with-contenv sh
+# bgutil-ytdlp-pot-provider: generates the proof-of-origin tokens YouTube demands
+# for media streams. Port 4416 on loopback is what the yt-dlp plugin probes by
+# default, so neither side needs configuration. The server is unauthenticated —
+# never bind it to anything but localhost.
+umask "${UMASK:-022}"
+cd /app/pot
+exec s6-setuidgid abc node /app/pot/build/main.js --port 4416

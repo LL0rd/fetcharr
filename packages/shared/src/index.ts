@@ -10,6 +10,7 @@ export {
 } from './args.ts'
 export type { ArgsJob, ArgsPaths, GlobalSettings, MediaKind } from './args.ts'
 export { DIRECT, maskProxy, parseProxyList, pickProxy } from './proxy.ts'
+export { AGE_GATE_CLIENTS, isAgeRestricted, withAgeGateClients } from './age-gate.ts'
 export {
   FORMATS,
   LOG_LEVELS,
